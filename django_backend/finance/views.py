@@ -9,6 +9,7 @@ from .permissions import IsAdminOrManagerForWriteAlerts
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
+from .services.audit_service import create_audit_log
 
 
 from .models import (
@@ -194,16 +195,14 @@ class TransactionViewSet(viewsets.ModelViewSet):
             )
 
         # Record the workflow action.
-        AuditLog.objects.create(
-            user=self.request.user,
-            action=(
+        create_audit_log(
+            self.request,
+            (
                 f"Transaction {transaction.transaction_id} created "
                 f"and analysed. "
                 f"Fraud prediction: "
                 f"{prediction.prediction if prediction else 'Unavailable'}."
-            ),
-            ip_address=self.request.META.get("REMOTE_ADDR", ""),
-            log_time=timezone.now(),
+                ),
         )
 # ============================================================
 # FRAUD / ANOMALY PREDICTION
@@ -301,14 +300,12 @@ class FinancialForecastViewSet(viewsets.ModelViewSet):
             saved_forecasts = FinancialForecast.objects.bulk_create(
                 forecast_objects
             )
-            AuditLog.objects.create(
-                user=request.user,
-                action=(
+            create_audit_log(
+                request,
+                (
                     f"Generated {len(saved_forecasts)} financial forecast records "
                     f"for {horizon} months."
-                    ),
-                    ip_address=request.META.get("REMOTE_ADDR", ""),
-                    log_time=timezone.now(),
+                ),
             )
             serializer = self.get_serializer(
                 saved_forecasts,
@@ -389,15 +386,13 @@ class AlertViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         alert = serializer.save()
 
-        AuditLog.objects.create(
-            user=self.request.user,
-            action=(
+        create_audit_log(
+            self.request,
+            (
                 f"Alert {alert.alert_id} updated for "
                 f"Transaction {alert.transaction_id}. "
                 f"Resolved: {alert.is_resolved}."
             ),
-            ip_address=self.request.META.get("REMOTE_ADDR", ""),
-            log_time=timezone.now(),
         )
 # ============================================================
 # JOURNAL ENTRY
@@ -492,11 +487,9 @@ class GeminiReportView(APIView):
 
             result = generate_gemini_report()
 
-            AuditLog.objects.create(
-                user=request.user,
-                action="Generated Gemini management financial report.",
-                ip_address=request.META.get("REMOTE_ADDR", ""),
-                log_time=timezone.now(),
+            create_audit_log(
+                request,
+                "Generated Gemini management financial report.",
             )
 
 
@@ -546,3 +539,4 @@ class HealthCheckView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+

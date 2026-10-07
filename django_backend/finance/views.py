@@ -72,17 +72,24 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Admin can create users normally
         if user.role.role_name == "Admin":
-            serializer.save()
-            return
+            created_user = serializer.save()
+        else:
+            # Manager can create users only in their own branch
+            # and cannot create another Admin/Manager account.
+    
+            customer_role = Role.objects.get(role_name="Customer")
 
-        # Manager can create users only in their own branch
-        # and cannot create another Admin/Manager account.
-        manager_role = Role.objects.get(role_name="Manager")
-        staff_role = Role.objects.get(role_name="Staff")
+            created_user = serializer.save(
+                role=customer_role,
+                branch=user.branch,
+            )
 
-        serializer.save(
-            role=staff_role,
-            branch=user.branch,
+        create_audit_log(
+            self.request,
+            (
+                f"User {created_user.user_id} created by "
+                f"User {user.user_id}."
+            ),
         )
 
     def perform_update(self, serializer):
@@ -90,22 +97,30 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Admin can update users normally
         if user.role.role_name == "Admin":
-            serializer.save()
-            return
+            updated_user = serializer.save()
+        else:
+            target_user = self.get_object()
 
-        target_user = self.get_object()
+            # Manager can only modify users in their own branch
+            if target_user.branch != user.branch:
+                raise PermissionDenied(
+                    "You can only modify users in your own branch."
+                )
 
-        # Manager can only modify users in their own branch
-        if target_user.branch != user.branch:
-            raise PermissionDenied(
-                "You can only modify users in your own branch."
+            # Manager cannot change the user role or branch
+            updated_user = serializer.save(
+                role=target_user.role,
+                branch=target_user.branch,
             )
 
-        # Manager cannot change the user's role or branch
-        serializer.save(
-            role=target_user.role,
-            branch=target_user.branch,
+        create_audit_log(
+            self.request,
+            (
+                f"User {updated_user.user_id} updated by "
+                f"User {user.user_id}."
+            ),
         )
+
 # ============================================================
 # ACCOUNT
 # ============================================================
@@ -134,6 +149,41 @@ class AccountViewSet(viewsets.ModelViewSet):
             ).order_by("-account_id")
 
         return Account.objects.none()
+    def perform_create(self, serializer):
+        account = serializer.save()
+
+        create_audit_log(
+            self.request,
+            (
+                f"Account {account.account_id} created by "
+                f"User {self.request.user.user_id}."
+            ),
+        )
+
+    def perform_update(self, serializer):
+        account = serializer.save()
+
+        create_audit_log(
+            self.request,
+            (
+                f"Account {account.account_id} updated by "
+                f"User {self.request.user.user_id}."
+            ),
+        )
+
+
+    def perform_destroy(self, instance):
+        account_id = instance.account_id
+
+        instance.delete()
+
+        create_audit_log(
+            self.request,
+            (
+                f"Account {account_id} deleted by "
+                f"User {self.request.user.user_id}."
+            ),
+        )
 
 # ============================================================
 # TRANSACTION
@@ -204,6 +254,30 @@ class TransactionViewSet(viewsets.ModelViewSet):
                 f"{prediction.prediction if prediction else 'Unavailable'}."
                 ),
         )
+    def perform_update(self, serializer):
+        transaction = serializer.save()
+
+        create_audit_log(
+            self.request,
+            (
+                f"Transaction {transaction.transaction_id} updated by "
+                f"User {self.request.user.user_id}."
+            ),
+        )
+
+    def perform_destroy(self, instance):
+        transaction_id = instance.transaction_id
+
+        instance.delete()
+
+        create_audit_log(
+            self.request,
+            (
+                f"Transaction {transaction_id} deleted by "
+                f"User {self.request.user.user_id}."
+            ),
+        )
+
 # ============================================================
 # FRAUD / ANOMALY PREDICTION
 # ============================================================

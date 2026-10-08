@@ -7,12 +7,16 @@ from decimal import Decimal
 from datetime import datetime
 import random
 
+from finance.services.forecast_service import generate_forecast
+
+
 from finance.models import (
     Role,
     Branch,
     User,
     Account,
     Transaction,
+    FinancialForecast,
 )
 
 
@@ -110,6 +114,26 @@ class Command(BaseCommand):
 
             if actual_anomalies == anomaly_count:
 
+                # Generate forecasts if they are missing
+                if FinancialForecast.objects.count() == 0:
+                    forecast_results = generate_forecast(months=12)
+
+                    FinancialForecast.objects.bulk_create([
+                        FinancialForecast(
+                            forecast_month=item["forecast_month"],
+                            predicted_income=item["predicted_income"],
+                            predicted_expense=item["predicted_expense"],
+                            generated_at=timezone.now(),
+                        )
+                        for item in forecast_results
+                    ])
+
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"Financial forecasts generated: {len(forecast_results)}"
+                        )
+                    )
+
                 self.stdout.write(
                     self.style.SUCCESS(
                         "Demo data already exists. "
@@ -143,7 +167,6 @@ class Command(BaseCommand):
 
                 return
 
-        # ============================================================
         # STOP ON PARTIAL / UNEXPECTED DATA
         # ============================================================
 

@@ -183,7 +183,7 @@ def generate_gemini_report():
         client = get_gemini_client()
 
         interaction = client.interactions.create(
-            model="gemini-3.6-flash",
+            model="gemini-3.8-flash",
             input=prompt,
         )
 
@@ -242,3 +242,4 @@ the report when Gemini becomes available.
             "report_source": "fallback",
             "gemini_available": False,
         }
+

@@ -420,6 +420,36 @@ def evaluate_forecast_models():
 # 8. GENERATE FUTURE FORECAST
 # ============================================================
 
+def select_model(naive_mape, sarima_mape):
+    """Choose the model with the lower valid MAPE."""
+    if naive_mape is None or not np.isfinite(naive_mape):
+        if sarima_mape is not None and np.isfinite(sarima_mape):
+            return "sarima"
+        return "seasonal_naive"
+    if sarima_mape is None or not np.isfinite(sarima_mape):
+        return "seasonal_naive"
+    return "seasonal_naive" if naive_mape <= sarima_mape else "sarima"
+
+
+def generate_series_forecast(series, months, selected_model):
+    """Generate a forecast with Seasonal Naive fallback."""
+    if selected_model == "sarima":
+        try:
+            forecast = np.asarray(sarima_forecast(series, months), dtype=float)
+            if len(forecast) == months and np.all(np.isfinite(forecast)):
+                return forecast, "sarima"
+        except Exception:
+            pass
+
+    forecast = np.asarray(
+        seasonal_naive_forecast(series, months, season_length=12),
+        dtype=float,
+    )
+    if len(forecast) != months or not np.all(np.isfinite(forecast)):
+        raise ValueError("Seasonal Naive produced an invalid forecast.")
+    return forecast, "seasonal_naive"
+
+
 def generate_forecast(months=12):
     """
     Generate future income and expense forecasts.

@@ -1880,3 +1880,50 @@ class GeminiReportAPITests(TestCase):
         response = self.client.get("/api/report/")
 
         self.assertEqual(response.status_code, 403)
+
+
+
+class AlertAuditLoggingTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        self.branch = Branch.objects.create(
+            branch_name="Audit Test Branch",
+            city="Kannur",
+            state="Kerala",
+            ifsc_code="AUDT0000001",
+            phone="9000000001",
+        )
+        self.role, _ = Role.objects.get_or_create(role_name="Admin")
+        self.user = User.objects.create_user(
+            username="audit_test_admin",
+            email="audit_test_admin@example.com",
+            password="TestPassword@123",
+            role=self.role,
+            branch=self.branch,
+        )
+        self.audit_time = timezone.now()
+
+    def test_alert_created_audit_event_is_saved(self):
+        log = AuditLog.objects.create(
+            user=self.user,
+            action="ALERT_CREATED: Alert 1; transaction 101.",
+            ip_address="127.0.0.1",
+            log_time=self.audit_time,
+        )
+        self.assertIn("ALERT_CREATED", log.action)
+
+    def test_transaction_analysis_audit_event_is_saved(self):
+        log = AuditLog.objects.create(
+            user=self.user,
+            action=(
+                "TRANSACTION_CREATED_AND_ANALYSED: "
+                "Transaction 101; fraud prediction: True."
+            ),
+            ip_address="127.0.0.1",
+            log_time=self.audit_time,
+        )
+        self.assertIn(
+            "TRANSACTION_CREATED_AND_ANALYSED",
+            log.action,
+        )

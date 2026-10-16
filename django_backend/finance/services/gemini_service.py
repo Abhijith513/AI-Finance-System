@@ -157,6 +157,7 @@ VERIFIED APPLICATION RESULTS:
 
 
 
+
 # ============================================================
 # GENERATE REPORT
 # ============================================================
@@ -179,24 +180,18 @@ def generate_gemini_report():
     prompt = build_report_prompt(verified_results)
 
     try:
-
         client = get_gemini_client()
 
-        interaction = client.interactions.create(
+        # Generate the report using the Gemini models API.
+        response = client.models.generate_content(
             model="gemini-3.8-flash",
-            input=prompt,
+            contents=prompt,
         )
 
-        report_text = getattr(
-            interaction,
-            "output_text",
-            None,
-        )
+        report_text = response.text if response else None
 
         if not report_text or not report_text.strip():
-            raise RuntimeError(
-                "Gemini returned an empty report."
-            )
+            raise RuntimeError("Gemini returned an empty report.")
 
         return {
             "verified_results": verified_results,
@@ -206,11 +201,9 @@ def generate_gemini_report():
         }
 
     except Exception as exc:
-        # Do not allow Gemini failures to stop the
-        # financial analytics system.
-        print(
-            f"Gemini report unavailable: {exc}"
-        )
+        # Keep verified financial analytics available
+        # even when the Gemini request fails.
+        print(f"Gemini report unavailable: {exc}")
 
         fallback_report = """
 # Financial Analytics Management Report
@@ -242,4 +235,3 @@ the report when Gemini becomes available.
             "report_source": "fallback",
             "gemini_available": False,
         }
-

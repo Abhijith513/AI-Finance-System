@@ -163,11 +163,26 @@ def build_report_prompt(verified_results):
     numerical results.
     """
 
-    results_json = json.dumps(
-        verified_results,
-        indent=2,
-        default=str,
-    )
+    # Send a compact, sourced summary, not every per-window/data-point
+    # object. This is cheaper on the free tier and reduces noisy extrapolation.
+    fraud = verified_results.get("fraud_evaluation") or {}
+    forecasts = verified_results.get("forecast_evaluation") or {}
+    compact = {
+        "study": "Synthetic financial analytics",
+        "transaction_count": fraud.get("dataset"),
+        "synthetic_anomaly_count": fraud.get("actual_anomalies"),
+        "fraud_baseline_f1": (fraud.get("statistical_baseline") or {}).get("f1"),
+        "isolation_forest_f1": (fraud.get("isolation_forest") or {}).get("f1"),
+        "forecast_validation": {
+            series: {
+                "seasonal_naive_mape": ((forecasts.get(series) or {}).get("models") or {}).get("seasonal_naive", {}).get("mape"),
+                "sarima_mape": ((forecasts.get(series) or {}).get("models") or {}).get("sarima", {}).get("mape"),
+                "baseline_windows": ((forecasts.get(series) or {}).get("validation") or {}).get("observations"),
+                "sarima_windows": ((forecasts.get(series) or {}).get("validation") or {}).get("sarima_observations"),
+            } for series in ("income", "expense")
+        },
+    }
+    results_json = json.dumps(compact, indent=2, default=str)
 
     return f"""
 You are a financial analytics interpreter for a SYNTHETIC banking data

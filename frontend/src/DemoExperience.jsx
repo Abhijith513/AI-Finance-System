@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import AnalyticsDashboard from "./App.jsx";
 import OperationalWorkspace from "./OperationalWorkspace.jsx";
+import SyntheticLedgerWorkspace from "./SyntheticLedgerWorkspace.jsx";
+import ForecastUncertaintyPanel from "./ForecastUncertaintyPanel.jsx";
 import "./DemoExperience.css";
 
 const API = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -296,6 +298,7 @@ export default function DemoExperience() {
         <div className="demo-nav-right">
           {user.can_run_demo && <button type="button" aria-pressed={mode === "demo"} onClick={() => setMode("demo")}>Guided demo</button>}
           {user.can_use_operations && <button type="button" aria-pressed={mode === "operations"} onClick={() => setMode("operations")}>Operations</button>}
+          {user.can_use_operations && <button type="button" aria-pressed={mode === "ledger"} onClick={() => setMode("ledger")}>Synthetic ledger</button>}
           {user.can_view_global_analytics && <button type="button" aria-pressed={mode === "analytics"} onClick={() => setMode("analytics")}>Analytics dashboard</button>}
           <span className="demo-identity">{user.username} · {user.role}</span>
           <button type="button" onClick={logout} disabled={running || signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button>
@@ -303,7 +306,9 @@ export default function DemoExperience() {
       </nav>
       {logoutError && <p role="alert" className="demo-error">{logoutError}</p>}
       {mode === "analytics" && user.can_view_global_analytics ? (
-        <div className="demo-full-dashboard"><AnalyticsDashboard /></div>
+        <><div className="demo-full-dashboard"><AnalyticsDashboard /></div><ForecastUncertaintyPanel token={token}/></>
+      ) : mode === "ledger" && user.can_use_operations ? (
+        <SyntheticLedgerWorkspace token={token} user={user}/>
       ) : mode === "operations" || !user.can_run_demo ? (
         <OperationalWorkspace token={token} user={user} />
       ) : (

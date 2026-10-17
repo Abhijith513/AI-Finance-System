@@ -65,6 +65,21 @@ class PresenterDemoTests(TestCase):
         self.assertNotIn("password", response.data)
         self.assertNotIn("token", response.data)
 
+    def test_logout_revokes_server_token_and_requires_fresh_authentication(self):
+        token = self.login()
+        self.assertEqual(self.client.get("/api/me/").status_code, 200)
+        revoked = self.client.post("/api/logout/", {}, format="json")
+        self.assertEqual(revoked.status_code, 204, revoked.data)
+        self.assertEqual(self.client.get("/api/me/").status_code, 401)
+        self.assertEqual(self.client.post("/api/logout/").status_code, 401)
+
+        new_token = self.login()
+        self.assertNotEqual(token, new_token)
+        self.assertEqual(self.client.get("/api/me/").status_code, 200)
+
+    def test_anonymous_cannot_revoke_a_presenter_token(self):
+        self.assertEqual(self.client.post("/api/logout/").status_code, 401)
+
     def test_full_real_transaction_alert_audit_forecast_and_fallback_report(self):
         self.login()
         account = Account.objects.get(account_number="DEMO-ACCOUNT-2026")

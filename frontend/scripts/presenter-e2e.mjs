@@ -45,6 +45,29 @@ try {
   await page.getByText("Verified transaction evidence").waitFor({ timeout: 30000 });
   await page.getByText("Show management report").click();
   await page.screenshot({ path: path.join(evidenceDir, "05-management-report.png"), fullPage: true });
+  // Complete an independent human-facing transaction review in the UI.
+  await page.getByRole("button", { name: "Operations", exact: true }).click();
+  await page.getByRole("heading", { name: "Transactions and alert investigations" }).waitFor({ timeout: 60000 });
+  const presenterAccountOption = page.locator("#ops-account option").filter({ hasText: "DEMO-ACCOUNT-2026" });
+  await presenterAccountOption.waitFor({ timeout: 20000 });
+  const accountValue = await presenterAccountOption.getAttribute("value");
+  if (!accountValue) throw new Error("Presenter account missing from operational selector");
+  await page.locator("#ops-account").selectOption(accountValue);
+  await page.getByRole("button", { name: "Create and verify transaction" }).click();
+  await page.getByRole("status").filter({ hasText: "Created synthetic transaction #" }).waitFor({ timeout: 60000 });
+  const originalAlert = page.locator(".ops-alert").filter({ hasText: "Open for investigation" }).first();
+  await originalAlert.waitFor({ timeout: 20000 });
+  await page.getByLabel("Investigation conclusion").fill(
+    "Reviewed controlled synthetic alert: account and transaction verified; educational demonstration only."
+  );
+  await originalAlert.getByRole("button", { name: "Resolve with reason" }).click();
+  await page.getByRole("status").filter({ hasText: "resolved and audit-logged" }).waitFor({ timeout: 20000 });
+  if (!(await page.locator(".ops-audit-list").innerText()).includes("Reason: Reviewed controlled synthetic alert")) {
+    throw new Error("Operational UI did not show the persisted alert resolution audit record.");
+  }
+  log.operational_review_verified = true;
+  await page.screenshot({ path: path.join(evidenceDir, "06-operations-reviewed.png"), fullPage: true });
+
   const presenterToken = await page.evaluate(() => sessionStorage.getItem("finance_api_token"));
   if (!presenterToken) throw new Error("Presenter token missing before logout");
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -56,7 +79,7 @@ try {
     throw new Error("SECURITY REGRESSION: signed-out server token still authorizes /api/me/ (HTTP " + denied.status() + ")");
   }
   log.server_token_revoked = true;
-  await page.screenshot({ path: path.join(evidenceDir, "06-signed-out.png"), fullPage: true });
+  await page.screenshot({ path: path.join(evidenceDir, "07-signed-out.png"), fullPage: true });
   log.pass = true;
   console.log("BROWSER DEMO PASS: 8/8 steps; " + runtime);
 } catch (error) {

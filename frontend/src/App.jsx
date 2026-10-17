@@ -15,10 +15,10 @@ import {
 
 import "./App.css";
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 function getApiToken() {
-  return localStorage.getItem("finance_api_token");
+  return sessionStorage.getItem("finance_api_token");
 }
 
 const INR = new Intl.NumberFormat("en-IN", {
@@ -1089,7 +1089,7 @@ function App() {
           <p>{dashboardError}</p>
 
           <p className="error-help">
-            Make sure Django is running at{" "}
+            Make sure the Django backend is running. API base:{" "}
             <code>
               http://127.0.0.1:8000/
             </code>

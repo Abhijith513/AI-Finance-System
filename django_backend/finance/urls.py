@@ -14,6 +14,7 @@ from .views import (
     GeminiReportView,
     CurrentUserView,
     LogoutView,
+    OperationalSnapshotView,
 )
 
 router = DefaultRouter()
@@ -29,6 +30,7 @@ router.register("journal-entries", JournalEntryViewSet)
 
 urlpatterns = [
     path("me/", CurrentUserView.as_view(), name="current-user"),
+    path("operations/", OperationalSnapshotView.as_view(), name="operational-snapshot"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("", include(router.urls)),
 

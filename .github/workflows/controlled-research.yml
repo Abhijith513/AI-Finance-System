@@ -20,6 +20,10 @@ on:
       - django_backend/finance/management/commands/export_research_evidence.py
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   controlled-research:
     runs-on: ubuntu-latest

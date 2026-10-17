@@ -21,6 +21,10 @@ on:
       - django_backend/finance/services/gemini_service.py
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   latency:
     runs-on: ubuntu-latest

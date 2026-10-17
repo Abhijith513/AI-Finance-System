@@ -35,7 +35,11 @@ try {
   log.elapsed_time = runtime;
   await page.screenshot({ path: path.join(evidenceDir, "03-live-end-to-end-success.png"), fullPage: true });
   await page.getByRole("button", { name: "Analytics dashboard" }).click();
-  await page.getByRole("heading", { name: "Banking analytics dashboard" }).waitFor({ timeout: 1200000 });
+  await page.locator(".dashboard .hero h1, .error-screen").first().waitFor({ timeout: 90000 });
+  if (await page.locator(".error-screen").count()) {
+    throw new Error("Dashboard screen failed: " + (await page.locator(".error-screen").innerText()));
+  }
+  await page.getByRole("heading", { name: "Banking analytics dashboard" }).waitFor({ timeout: 10000 });
   await page.screenshot({ path: path.join(evidenceDir, "04-analytics-dashboard.png"), fullPage: true });
   await page.getByRole("button", { name: "Guided demo" }).click();
   await page.getByText("Verified transaction evidence").waitFor({ timeout: 30000 });

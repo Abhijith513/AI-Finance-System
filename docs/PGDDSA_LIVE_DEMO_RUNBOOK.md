@@ -32,7 +32,7 @@
   7. Twelve saved monthly forecasts retrieved
   8. Management report generated from verified Python metrics; **Gemini fallback is an acceptable, explicitly labelled result** when no key is provided
 - The demo stops and shows the exact failure if any required record or response is missing. Use the **Analytics dashboard** tab to show charts; return to **Guided demo** for the transaction evidence and management report.
-- Sign out. This clears the browser token from sessionStorage; it does not independently revoke the Django token server-side. Never expose or read out the token.
+- Sign out. The frontend POSTs to `/api/logout/`, which **revokes the actual Django authentication token on the server** before clearing sessionStorage. If revocation fails, the UI shows an error rather than falsely claiming a successful logout. Never expose or read out the token.
 
 ## Important methodological statements
 

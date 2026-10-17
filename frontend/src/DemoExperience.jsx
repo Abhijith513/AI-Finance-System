@@ -50,6 +50,8 @@ export default function DemoExperience() {
   const [password, setPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [logoutError, setLogoutError] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
   const [mode, setMode] = useState("demo");
   const [running, setRunning] = useState(false);
   const [records, setRecords] = useState([]);
@@ -113,15 +115,26 @@ export default function DemoExperience() {
     }
   }
 
-  function logout() {
-    if (runningRef.current) return;
-    sessionStorage.removeItem(TOKEN_KEY);
-    setToken("");
-    setUser(null);
-    setEvidence({});
-    setRecords([]);
-    setRunError("");
-    setMode("demo");
+  async function logout() {
+    if (runningRef.current || signingOut || !token) return;
+    setSigningOut(true);
+    setLogoutError("");
+    try {
+      // The token must be revoked on the server before local state is cleared.
+      await request("/logout/", token, { method: "POST" });
+      sessionStorage.removeItem(TOKEN_KEY);
+      setToken("");
+      setUser(null);
+      setEvidence({});
+      setRecords([]);
+      setRunError("");
+      setMode("demo");
+    } catch (error) {
+      // Do not claim sign-out succeeded when the old server token may still work.
+      setLogoutError("Sign-out could not revoke the server token: " + error.message);
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   async function runStep(index, action) {
@@ -283,9 +296,10 @@ export default function DemoExperience() {
           <button type="button" aria-pressed={mode === "demo"} onClick={() => setMode("demo")}>Guided demo</button>
           <button type="button" aria-pressed={mode === "analytics"} onClick={() => setMode("analytics")}>Analytics dashboard</button>
           <span className="demo-identity">{user.username} · {user.role}</span>
-          <button type="button" onClick={logout} disabled={running}>Sign out</button>
+          <button type="button" onClick={logout} disabled={running || signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button>
         </div>
       </nav>
+      {logoutError && <p role="alert" className="demo-error">{logoutError}</p>}
       {mode === "analytics" ? (
         <div className="demo-full-dashboard"><AnalyticsDashboard /></div>
       ) : (

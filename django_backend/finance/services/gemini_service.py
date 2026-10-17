@@ -19,6 +19,8 @@ Gemini must not calculate or invent these values.
 """
 
 import json
+import logging
+import re
 
 from django.conf import settings
 from google import genai
@@ -72,6 +74,77 @@ def get_verified_results():
     }
 
 
+# Every displayed numeric claim is rendered from Python metrics, never
+# accepted as free-form model-authored figures.
+logger = logging.getLogger(__name__)
+
+
+def render_verified_numeric_report(verified):
+    """A deterministic, traceable metric section and dataset limitation."""
+    fraud = verified.get("fraud_evaluation") or {}
+    forecast = verified.get("forecast_evaluation") or {}
+    baseline = fraud.get("statistical_baseline") or {}
+    forest = fraud.get("isolation_forest") or {}
+
+    def pct(value):
+        if value is None:
+            return "Unavailable"
+        return f"{value * 100:.2f}%"
+
+    lines = [
+        "# Financial Analytics Management Report",
+        "",
+        "## Verified Python-computed research metrics",
+        "",
+        f"- Synthetic transactions: {fraud.get('dataset', 'Unavailable')}",
+        f"- Labelled anomalies: {fraud.get('actual_anomalies', 'Unavailable')}",
+        f"- Statistical baseline F1: {pct(baseline.get('f1'))}",
+        f"- Isolation Forest F1: {pct(forest.get('f1'))}",
+        "",
+        "| Series | Seasonal-Naive MAPE | SARIMA MAPE | Baseline windows | SARIMA windows |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for series in ("income", "expense"):
+        result = forecast.get(series) or {}
+        models = result.get("models") or {}
+        validation = result.get("validation") or {}
+        naive = (models.get("seasonal_naive") or {}).get("mape")
+        sarima = (models.get("sarima") or {}).get("mape")
+        lines.append(
+            f"| {series.title()} | {naive if naive is not None else 'Unavailable'}% "
+            f"| {sarima if sarima is not None else 'Unavailable'}% "
+            f"| {validation.get('observations', 'Unavailable')} "
+            f"| {validation.get('sarima_observations', 'Unavailable')} |"
+        )
+    lines.extend([
+        "",
+        "> **Scope:** These figures are computed by Python on synthetic data. "
+        "Isolation Forest's original comparison is in-sample; the month-window "
+        "SARIMA and baseline results may not be fully paired. The live "
+        "behavioural risk score is uncalibrated and is not a fraud probability.",
+    ])
+    return "\n".join(lines)
+
+
+def validate_narrative(text):
+    """Reject model-authored numbers; no fabricated or altered numerical claims."""
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("Gemini returned an empty narrative.")
+    # Digit-bearing narratives are not accepted; all figures live in the
+    # deterministic Python section. Models may discuss qualitative patterns.
+    if re.search(r"\d", text):
+        raise ValueError("Gemini narrative contains unverified numeric claims.")
+    forbidden = (
+        "guaranteed", "risk-free", "proven real-world", "certified bank",
+        "zero risk", "real bank fraud detected",
+    )
+    if any(phrase in text.lower() for phrase in forbidden):
+        raise ValueError("Gemini narrative contains unsupported assurances.")
+    if len(text) > 12000:
+        raise ValueError("Gemini narrative exceeds the allowed length.")
+    return text.strip()
+
+
 # ============================================================
 # BUILD CONTROLLED PROMPT
 # ============================================================
@@ -91,66 +164,21 @@ def build_report_prompt(verified_results):
     )
 
     return f"""
-You are a financial analytics reporting assistant.
+You are a financial analytics interpreter for a SYNTHETIC banking data
+research project. Write concise qualitative interpretation only.
 
-Generate a concise management report using ONLY the
-verified results provided below.
+RULES:
+- Return plain Markdown sections titled Observations, Limitations, Recommendations.
+- NEVER write digits, numbers, dates, percentages, currency amounts or newly
+  calculated figures. All numbers will be supplied separately by Python.
+- Do not claim real fraud detection, bank certification or forecast guarantees.
+- Do not assert causal explanations for model failure without independent tests.
+- Discuss where an amount-based statistical baseline may outperform a complex
+  unsupervised model on amount-heavy synthetic anomalies.
+- Explain that incomplete SARIMA validation coverage limits comparisons.
+- If the data does not support a conclusion, say so; do not improvise facts.
 
-STRICT RULES:
-
-1. Do not calculate any new numerical metrics.
-2. Do not invent values.
-3. Do not modify supplied values.
-4. Do not assume missing financial information.
-5. Do not create unsupported claims.
-6. Use the exact values supplied by the application.
-7. If information is unavailable, explicitly say it is
-   unavailable.
-8. Explain the results in clear business language.
-9. Clearly distinguish model performance from business
-   interpretation.
-10. Do not claim that forecasts are guaranteed.
-
-The report must contain:
-
-1. Executive Summary
-2. Fraud / Anomaly Detection
-3. Forecasting
-4. Key Findings
-5. Recommendations
-
-Fraud / Anomaly Detection should discuss:
-
-- total transactions
-- actual anomalies
-- anomaly percentage
-- statistical baseline precision
-- statistical baseline recall
-- statistical baseline F1
-- statistical baseline confusion matrix
-- Isolation Forest precision
-- Isolation Forest recall
-- Isolation Forest F1
-- Isolation Forest confusion matrix
-- better model according to the supplied F1 scores
-
-Forecasting should discuss:
-
-- total historical months
-- training period
-- validation period
-- Seasonal-Naive performance
-- SARIMA performance
-- MAE
-- RMSE
-- MAPE
-- better model based on the supplied validation metrics
-
-The forecasting section must clearly state that the
-comparison is based on chronological validation.
-
-VERIFIED APPLICATION RESULTS:
-
+Verified application evidence (read only; DO NOT reproduce the digits):
 {results_json}
 """
 
@@ -170,67 +198,32 @@ def generate_gemini_report():
     If Gemini is unavailable, return a fallback report.
     """
 
-    # Always calculate verified results first.
-    # If analytics itself fails, let the error be handled
-    # separately rather than pretending Gemini failed.
     verified_results = get_verified_results()
-
-    # Build the controlled prompt from verified results.
     prompt = build_report_prompt(verified_results)
+    numeric_section = render_verified_numeric_report(verified_results)
 
     try:
         client = get_gemini_client()
-
-        # Generate the report using the Gemini models API.
         response = client.models.generate_content(
-            model="gemini-3.8-flash",
+            model=getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash"),
             contents=prompt,
         )
-
-        report_text = response.text if response else None
-
-        if not report_text or not report_text.strip():
-            raise RuntimeError("Gemini returned an empty report.")
-
+        interpretation = validate_narrative(response.text if response else None)
         return {
             "verified_results": verified_results,
-            "report": report_text,
+            "report": numeric_section + "\\n\\n## AI-assisted qualitative interpretation (not independent evidence)\\n\\n" + interpretation,
             "report_source": "gemini",
             "gemini_available": True,
+            "numeric_claims_source": "python_only",
+            "narrative_numeric_validation": "passed",
         }
-
     except Exception as exc:
-        # Keep verified financial analytics available
-        # even when the Gemini request fails.
-        print(f"Gemini report unavailable: {exc}")
-
-        fallback_report = """
-# Financial Analytics Management Report
-
-## AI Reporting Status
-
-Gemini is currently unavailable. This report contains
-verified Python-computed analytics, but the AI-generated
-interpretation could not be created.
-
-## Available Results
-
-The verified fraud detection and forecasting metrics
-are included in the API response under verified_results.
-
-## Important Notice
-
-No additional numerical claims or recommendations have
-been generated because the AI reporting service is
-unavailable.
-
-Please review the verified results directly or retry
-the report when Gemini becomes available.
-"""
-
+        logger.warning("Gemini report unavailable or rejected: %s", type(exc).__name__)
         return {
             "verified_results": verified_results,
-            "report": fallback_report,
+            "report": numeric_section + "\\n\\n## AI reporting status\\n\\nGemini unavailable or its narrative failed validation. This is the deterministic Python-only fallback; no external AI interpretation was accepted.",
             "report_source": "fallback",
             "gemini_available": False,
+            "numeric_claims_source": "python_only",
+            "narrative_numeric_validation": "not_applicable",
         }

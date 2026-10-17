@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from .serializers import UserSerializer, UserCreateSerializer
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .permissions import IsAdminOrManager, IsAdminManagerOrAnalyst
+from .permissions import IsAdminOrManager, IsAdminManagerOrAnalyst, IsAdminOrAnalyst, IsAdmin
 from .permissions import IsAdminOrManagerForWrite
 from .permissions import IsAdminOrManagerForWriteAlerts
 from rest_framework.views import APIView
@@ -14,6 +14,7 @@ from .services.audit_service import create_audit_log
 
 from .models import (
     User,
+    Role,
     Account,
     Transaction,
     FraudPrediction,
@@ -51,6 +52,11 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAdminOrManager]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserCreateSerializer
+        return UserSerializer
 
     def get_queryset(self):
         user = self.request.user
@@ -282,7 +288,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 # FRAUD / ANOMALY PREDICTION
 # ============================================================
 
-class FraudPredictionViewSet(viewsets.ModelViewSet):
+class FraudPredictionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = FraudPrediction.objects.all()
     serializer_class = FraudPredictionSerializer
     permission_classes = [IsAdminManagerOrAnalyst]
@@ -310,11 +316,11 @@ class FraudPredictionViewSet(viewsets.ModelViewSet):
 # FINANCIAL FORECAST
 # ============================================================
 
-class FinancialForecastViewSet(viewsets.ModelViewSet):
+class FinancialForecastViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = FinancialForecast.objects.all().order_by("forecast_month")
     serializer_class = FinancialForecastSerializer
-    permission_classes = [IsAdminManagerOrAnalyst]
+    permission_classes = [IsAdminOrAnalyst]
 
     # other methods...
 
@@ -322,7 +328,7 @@ class FinancialForecastViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=["post"],
         url_path="generate",
-        permission_classes=[IsAdminOrManager],
+        permission_classes=[IsAdmin],
     )
 
     def generate(self, request):
@@ -508,7 +514,7 @@ class DashboardView(APIView):
     - System information
     """
 
-    permission_classes = [IsAdminManagerOrAnalyst]
+    permission_classes = [IsAdminOrAnalyst]
 
     def get(self, request):
 
@@ -553,7 +559,7 @@ class GeminiReportView(APIView):
     - forecast values
     """
 
-    permission_classes = [IsAdminManagerOrAnalyst]
+    permission_classes = [IsAdminOrAnalyst]
 
     def get(self, request):
 

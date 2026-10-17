@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from .serializers import UserSerializer, UserCreateSerializer
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.authtoken.models import Token
 from .permissions import IsAdminOrManager, IsAdminManagerOrAnalyst, IsAdminOrAnalyst, IsAdmin
 from .permissions import IsAdminOrManagerForWrite
 from .permissions import IsAdminOrManagerForWriteAlerts
@@ -580,6 +582,23 @@ class GeminiReportView(APIView):
 # ============================================================
 # HEALTH CHECK
 # ============================================================
+
+class LogoutView(APIView):
+    """Revoke the presented DRF token, rather than just clearing the browser."""
+
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.auth
+        if not isinstance(token, Token):
+            return Response(
+                {"detail": "Token authentication is required for logout."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        token.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class CurrentUserView(APIView):
     """Authenticated identity for the demo UI; never expose token or password."""

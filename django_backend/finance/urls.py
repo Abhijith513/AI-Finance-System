@@ -1,5 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from .ledger_api import SyntheticLedgerView
+from .uncertainty_api import ForecastUncertaintyView
 
 from .views import (
     UserViewSet,
@@ -31,6 +33,8 @@ router.register("journal-entries", JournalEntryViewSet)
 urlpatterns = [
     path("me/", CurrentUserView.as_view(), name="current-user"),
     path("operations/", OperationalSnapshotView.as_view(), name="operational-snapshot"),
+    path("synthetic-ledger/", SyntheticLedgerView.as_view(), name="synthetic-ledger"),
+    path("forecast-uncertainty/", ForecastUncertaintyView.as_view(), name="forecast-uncertainty"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("", include(router.urls)),
 

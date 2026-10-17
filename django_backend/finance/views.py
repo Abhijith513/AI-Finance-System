@@ -406,6 +406,8 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
         if user.role.role_name == "Manager":
             return AuditLog.objects.filter(
                 user__branch=user.branch
+            ).exclude(
+                user__role__role_name="Admin"
             ).order_by("-log_time")
 
         return AuditLog.objects.none()
@@ -519,7 +521,12 @@ class OperationalSnapshotView(APIView):
                 {} if user.role.role_name == "Admin"
                 else {"user__branch": user.branch}
             )
-        ).order_by("-log_id")
+        )
+        if user.role.role_name == "Manager":
+            # An Admin's home branch is not the same as the scope of the
+            # transaction the Admin operated on; exclude Admin log actions.
+            audit = audit.exclude(user__role__role_name="Admin")
+        audit = audit.order_by("-log_id")
         account = request.query_params.get("account_id")
         if account:
             try:

@@ -706,6 +706,8 @@ class CurrentUserView(APIView):
             "role": user.role.role_name if user.role else None,
             "branch": user.branch.branch_name if user.branch else None,
             "can_run_demo": bool(user.role and user.role.role_name == "Admin"),
+            "can_use_operations": bool(user.role and user.role.role_name in ("Admin", "Manager")),
+            "can_view_global_analytics": bool(user.role and user.role.role_name in ("Admin", "Analyst")),
         })
 
 

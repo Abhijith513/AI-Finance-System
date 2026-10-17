@@ -40,7 +40,7 @@ with sync_playwright() as playwright:
     screenshot(page, "03-complete-steps.png")
     page.get_by_text("Verified transaction evidence", exact=True).wait_for()
     page.get_by_text("Behavioural risk score:", exact=False).wait_for()
-    page.get_by_text("Alert #", exact=False).wait_for()
+    page.locator(".demo-evidence").get_by_text("Alert #", exact=False).wait_for()
     page.get_by_text("Audit event #", exact=False).wait_for()
     page.get_by_text("Saved forecast records: 12", exact=False).wait_for()
     page.locator("details").get_by_text("Show management report").click()

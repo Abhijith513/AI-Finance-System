@@ -6,6 +6,9 @@ on:
       - rescue/submission-critical-fixes
     paths:
       - .github/workflows/report-evidence.yml
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:

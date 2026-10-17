@@ -12,6 +12,7 @@ from .views import (
     JournalEntryViewSet,
     DashboardView,
     GeminiReportView,
+    CurrentUserView,
 )
 
 router = DefaultRouter()
@@ -26,6 +27,7 @@ router.register("alerts", AlertViewSet, basename="alert")
 router.register("journal-entries", JournalEntryViewSet)
 
 urlpatterns = [
+    path("me/", CurrentUserView.as_view(), name="current-user"),
     path("", include(router.urls)),
 
     path(

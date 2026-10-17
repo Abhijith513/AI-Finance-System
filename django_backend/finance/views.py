@@ -9,6 +9,8 @@ from .permissions import IsAdminOrManagerForWriteAlerts
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
+from django.db import transaction as db_transaction
+from .services.live_fraud_service import screen_transaction
 from .services.audit_service import create_audit_log
 
 
@@ -35,10 +37,7 @@ from .serializers import (
     JournalEntrySerializer,
 )
 
-from .services.fraud_service import (
-    evaluate_fraud_models,
-    generate_fraud_predictions,
-)
+from .services.fraud_service import evaluate_fraud_models
 from .services.forecast_service import evaluate_forecast_models
 from .services.dashboard_service import get_dashboard_data
 from .services.gemini_service import generate_gemini_report
@@ -198,6 +197,8 @@ class AccountViewSet(viewsets.ModelViewSet):
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [IsAdminOrManagerForWrite]
+    # Preserve original transactions and their audit trail; no in-place edits/deletes.
+    http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
         user = self.request.user
@@ -225,64 +226,38 @@ class TransactionViewSet(viewsets.ModelViewSet):
         # Any unknown role → no access
         return Transaction.objects.none()
 
+    @db_transaction.atomic
     def perform_create(self, serializer):
+        # A transaction, its score, alert (if any) and audit log commit together.
         transaction = serializer.save()
 
-        # Run the existing fraud detection workflow.
-        generate_fraud_predictions()
+        # Account-bounded behavioural screen; Isolation Forest is a batch benchmark.
+        prediction = screen_transaction(transaction)
 
-        # Get the prediction generated for this transaction.
-        prediction = FraudPrediction.objects.filter(
-            transaction=transaction
-        ).first()
-
-        # Create an alert when the model flags the transaction.
-        if prediction and prediction.prediction:
-            Alert.objects.create(
-                alert_type="Fraud / Anomaly",
-                severity="High",
-                message=(
-                    f"Transaction {transaction.transaction_id} "
-                    f"was flagged by {prediction.model_version}."
-                ),
-                is_resolved=False,
-                created_at=timezone.now(),
+        if prediction.prediction:
+            Alert.objects.get_or_create(
                 transaction=transaction,
+                alert_type="Fraud / Anomaly",
+                defaults={
+                    "severity": "High",
+                    "message": (
+                        f"Transaction {transaction.transaction_id} "
+                        f"was flagged by {prediction.model_version}."
+                    ),
+                    "is_resolved": False,
+                    "created_at": timezone.now(),
+                },
             )
 
-        # Record the workflow action.
         create_audit_log(
             self.request,
             (
-                f"Transaction {transaction.transaction_id} created "
-                f"and analysed. "
-                f"Fraud prediction: "
-                f"{prediction.prediction if prediction else 'Unavailable'}."
-                ),
-        )
-    def perform_update(self, serializer):
-        transaction = serializer.save()
-
-        create_audit_log(
-            self.request,
-            (
-                f"Transaction {transaction.transaction_id} updated by "
-                f"User {self.request.user.user_id}."
+                f"Transaction {transaction.transaction_id} created and screened. "
+                f"Model: {prediction.model_version}. "
+                f"Flagged: {prediction.prediction}."
             ),
         )
 
-    def perform_destroy(self, instance):
-        transaction_id = instance.transaction_id
-
-        instance.delete()
-
-        create_audit_log(
-            self.request,
-            (
-                f"Transaction {transaction_id} deleted by "
-                f"User {self.request.user.user_id}."
-            ),
-        )
 
 # ============================================================
 # FRAUD / ANOMALY PREDICTION
@@ -341,9 +316,9 @@ class FinancialForecastViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             horizon = int(horizon)
 
-            if horizon <= 0:
+            if horizon <= 0 or horizon > 24:
                 return Response(
-                    {"error": "Horizon must be greater than zero."},
+                    {"error": "Horizon must be between 1 and 24 months."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -365,32 +340,34 @@ class FinancialForecastViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            FinancialForecast.objects.all().delete()
+            # Do not delete previous forecasts unless the full replacement succeeds.
+            with db_transaction.atomic():
+                FinancialForecast.objects.all().delete()
 
-            forecast_objects = [
-                FinancialForecast(
-                    forecast_month=item["forecast_month"],
-                    predicted_income=item["predicted_income"],
-                    predicted_expense=item["predicted_expense"],
-                    generated_at=timezone.now(),
+                forecast_objects = [
+                    FinancialForecast(
+                        forecast_month=item["forecast_month"],
+                        predicted_income=item["predicted_income"],
+                        predicted_expense=item["predicted_expense"],
+                        generated_at=timezone.now(),
+                    )
+                    for item in forecasts
+                ]
+
+                saved_forecasts = FinancialForecast.objects.bulk_create(
+                    forecast_objects
                 )
-                for item in forecasts
-            ]
-
-            saved_forecasts = FinancialForecast.objects.bulk_create(
-                forecast_objects
-            )
-            create_audit_log(
-                request,
-                (
-                    f"Generated {len(saved_forecasts)} financial forecast records "
-                    f"for {horizon} months."
-                ),
-            )
-            serializer = self.get_serializer(
-                saved_forecasts,
-                many=True,
-            )
+                create_audit_log(
+                    request,
+                    (
+                        f"Generated {len(saved_forecasts)} financial forecast records "
+                        f"for {horizon} months."
+                    ),
+                )
+                serializer = self.get_serializer(
+                    saved_forecasts,
+                    many=True,
+                )
 
             return Response(
                 serializer.data,

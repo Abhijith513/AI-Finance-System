@@ -33,6 +33,8 @@ class PresenterDemoTests(TestCase):
         self.client = APIClient()
 
     def login(self):
+        # A fresh sign-in must NOT attach the previously revoked token.
+        self.client.credentials()
         response = self.client.post(
             "/api/token/",
             {"username": "demo_presenter", "password": "PresenterOnly123!"},

@@ -23,8 +23,7 @@ import json
 from django.conf import settings
 from google import genai
 
-from .fraud_service import evaluate_fraud_models
-from .forecast_service import evaluate_forecast_models
+from .cached_research import get_cached_research_evaluations
 
 
 # ============================================================
@@ -63,9 +62,9 @@ def get_verified_results():
     Gemini receives the results produced here.
     """
 
-    fraud_results = evaluate_fraud_models()
-
-    forecast_results = evaluate_forecast_models()
+    research = get_cached_research_evaluations()
+    fraud_results = research["fraud_evaluation"]
+    forecast_results = research["forecast_evaluation"]
 
     return {
         "fraud_evaluation": fraud_results,

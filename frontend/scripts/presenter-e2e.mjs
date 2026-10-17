@@ -82,6 +82,9 @@ try {
 
   await page.getByRole("button", { name: "Analytics dashboard" }).click();
   await page.getByRole("heading", { name: "Exploratory Seasonal-Naive uncertainty" }).waitFor({ timeout: 90000 });
+  // The heading renders before the async forecast uncertainty request completes.
+  // Wait for actual table data rather than immediately reading an empty DOM.
+  await page.getByText("Insufficient data").first().waitFor({ state: "visible", timeout: 60000 });
   if ((await page.getByText("Insufficient data").count()) === 0) {
     throw new Error("Uncertainty display did not disclose unavailable longer horizons.");
   }

@@ -284,6 +284,19 @@ The following figures were recomputed for the 24-month **synthetic** history. Hi
 
 ---
 
+## Separate chronological and behavioural research (H5–H8)
+
+The current recovery revision includes **new, separately labelled studies** in addition to — **not instead of** — the original in-sample experiment. See [verified research findings](docs/CONTROLLED_RESEARCH_FINDINGS.md), the [prespecified protocol](docs/CONTROLLED_RESEARCH_PROTOCOL.md), and [the actual CI evidence artifact](https://github.com/Abhijith513/AI-Finance-System/actions/runs/39023138671).
+
+- Chronological holdout of original synthetic dataset: train on the first 40,000 transactions, test on later 10,000 (115 anomalies). Isolation Forest detected **1/115**, F1 **1.72%**; statistical amount baseline detected **96/115**, F1 **91.00%**.
+- Separate behaviour-only study: 6,000 synthetic events, 90 labelled anomalies entirely in the later test period. Neither Isolation Forest nor the amount-based baseline detected any; this is an openly reported **negative result**.
+- **Matched-window** seasonal forecasting on exactly the same ten successful months: income Seasonal-Naive/SARIMA MAPE **7.51% / 61.57%**; expense **3.69% / 7.33%**. SARIMA failed the March 2025 window, which remains explicitly disclosed.
+- Actual false-negative cases, descriptive feature contrasts, and residual/worst-window details are in the evidence JSON. No claim of causal feature attribution is made.
+
+**Caution:** Held-out evaluation is not equivalent to the earlier in-sample results. Both datasets and fraud labels are synthetic, and a fixed 1% contamination threshold does not represent a calibrated financial-fraud probability.
+
+---
+
 # 10. Dashboard Analytics
 
 The React dashboard displays backend-generated analytics including:

@@ -112,6 +112,11 @@ class PairedForecastTests(SimpleTestCase):
         )
 
     def test_paired_metrics_only_use_successful_same_months(self):
+        series = self.series.copy()
+        # The window that SARIMA fails has an unusual baseline error,
+        # making the paired-vs-unpaired comparison observably different.
+        series.iloc[13] = 9999.0
+
         def deliberately_fail_first(train, horizon):
             if len(train) == 13:
                 raise ValueError("controlled SARIMA failure")
@@ -121,7 +126,7 @@ class PairedForecastTests(SimpleTestCase):
             "finance.services.forecast_service.sarima_forecast",
             side_effect=deliberately_fail_first,
         ):
-            result = expanding_window_validation(self.series, initial_train_size=13)
+            result = expanding_window_validation(series, initial_train_size=13)
         self.assertEqual(result["observations"], 11)
         self.assertEqual(result["sarima_observations"], 10)
         self.assertEqual(result["paired"]["observations"], 10)

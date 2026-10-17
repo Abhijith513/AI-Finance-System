@@ -211,7 +211,7 @@ def generate_gemini_report():
         interpretation = validate_narrative(response.text if response else None)
         return {
             "verified_results": verified_results,
-            "report": numeric_section + "\\n\\n## AI-assisted qualitative interpretation (not independent evidence)\\n\\n" + interpretation,
+            "report": numeric_section + "\n\n## AI-assisted qualitative interpretation (not independent evidence)\n\n" + interpretation,
             "report_source": "gemini",
             "gemini_available": True,
             "numeric_claims_source": "python_only",
@@ -221,7 +221,7 @@ def generate_gemini_report():
         logger.warning("Gemini report unavailable or rejected: %s", type(exc).__name__)
         return {
             "verified_results": verified_results,
-            "report": numeric_section + "\\n\\n## AI reporting status\\n\\nGemini unavailable or its narrative failed validation. This is the deterministic Python-only fallback; no external AI interpretation was accepted.",
+            "report": numeric_section + "\n\n## AI reporting status\n\nGemini unavailable or its narrative failed validation. This is the deterministic Python-only fallback; no external AI interpretation was accepted.",
             "report_source": "fallback",
             "gemini_available": False,
             "numeric_claims_source": "python_only",

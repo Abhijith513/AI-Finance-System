@@ -451,6 +451,9 @@ class AlertViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         raise MethodNotAllowed("PUT", detail="Only the review action is supported.")
 
+    def destroy(self, request, *args, **kwargs):
+        raise MethodNotAllowed("DELETE", detail="Original alert evidence cannot be deleted.")
+
     @db_transaction.atomic
     def partial_update(self, request, *args, **kwargs):
         """Audited, atomic resolution. Original evidence is immutable."""

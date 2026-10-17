@@ -13,6 +13,7 @@ from .views import (
     DashboardView,
     GeminiReportView,
     CurrentUserView,
+    LogoutView,
 )
 
 router = DefaultRouter()
@@ -28,6 +29,7 @@ router.register("journal-entries", JournalEntryViewSet)
 
 urlpatterns = [
     path("me/", CurrentUserView.as_view(), name="current-user"),
+    path("logout/", LogoutView.as_view(), name="logout"),
     path("", include(router.urls)),
 
     path(

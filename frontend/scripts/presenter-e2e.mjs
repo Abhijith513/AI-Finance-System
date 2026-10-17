@@ -49,7 +49,8 @@ try {
   await page.getByRole("button", { name: "Operations", exact: true }).click();
   await page.getByRole("heading", { name: "Transactions and alert investigations" }).waitFor({ timeout: 60000 });
   const presenterAccountOption = page.locator("#ops-account option").filter({ hasText: "DEMO-ACCOUNT-2026" });
-  await presenterAccountOption.waitFor({ timeout: 20000 });
+  await page.locator("#ops-account").waitFor({ timeout: 20000 });
+  await presenterAccountOption.first().waitFor({ state: "attached", timeout: 20000 });
   const accountValue = await presenterAccountOption.getAttribute("value");
   if (!accountValue) throw new Error("Presenter account missing from operational selector");
   await page.locator("#ops-account").selectOption(accountValue);

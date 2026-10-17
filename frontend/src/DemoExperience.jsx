@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import AnalyticsDashboard from "./App.jsx";
+import OperationalWorkspace from "./OperationalWorkspace.jsx";
 import "./DemoExperience.css";
 
 const API = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -99,14 +100,14 @@ export default function DemoExperience() {
       });
       if (!auth.token) throw new Error("The login response contained no token.");
       const person = await request("/me/", auth.token);
-      if (!person.can_run_demo) {
-        throw new Error("The guided demonstration requires an Admin role.");
+      if (!person.can_run_demo && !person.can_use_operations) {
+        throw new Error("The authenticated operations workspace requires an Admin or Manager role.");
       }
       sessionStorage.setItem(TOKEN_KEY, auth.token);
       setToken(auth.token);
       setUser(person);
       setPassword("");
-      setMode("demo");
+      setMode(person.can_run_demo ? "demo" : "operations");
     } catch (error) {
       sessionStorage.removeItem(TOKEN_KEY);
       setLoginError(error.message);
@@ -293,15 +294,18 @@ export default function DemoExperience() {
       <nav className="demo-nav" aria-label="Application navigation">
         <strong>AI Finance System <span> / PGDDSA Demonstration</span></strong>
         <div className="demo-nav-right">
-          <button type="button" aria-pressed={mode === "demo"} onClick={() => setMode("demo")}>Guided demo</button>
-          <button type="button" aria-pressed={mode === "analytics"} onClick={() => setMode("analytics")}>Analytics dashboard</button>
+          {user.can_run_demo && <button type="button" aria-pressed={mode === "demo"} onClick={() => setMode("demo")}>Guided demo</button>}
+          {user.can_use_operations && <button type="button" aria-pressed={mode === "operations"} onClick={() => setMode("operations")}>Operations</button>}
+          {user.can_view_global_analytics && <button type="button" aria-pressed={mode === "analytics"} onClick={() => setMode("analytics")}>Analytics dashboard</button>}
           <span className="demo-identity">{user.username} · {user.role}</span>
           <button type="button" onClick={logout} disabled={running || signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button>
         </div>
       </nav>
       {logoutError && <p role="alert" className="demo-error">{logoutError}</p>}
-      {mode === "analytics" ? (
+      {mode === "analytics" && user.can_view_global_analytics ? (
         <div className="demo-full-dashboard"><AnalyticsDashboard /></div>
+      ) : mode === "operations" || !user.can_run_demo ? (
+        <OperationalWorkspace token={token} user={user} />
       ) : (
         <main className="demo-main">
           <div className="demo-heading">

@@ -45,6 +45,21 @@ function numberOrZero(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+// Unlike summary counts, evaluation metrics must not invent a zero when absent.
+function metricOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function formatForecastMoney(value) {
+  return value === null ? "Unavailable" : INR.format(value);
+}
+
+function formatForecastPercent(value) {
+  return value === null ? "Unavailable" : `${value.toFixed(2)}%`;
+}
+
 function formatMoney(value) {
   return INR.format(numberOrZero(value));
 }
@@ -296,15 +311,15 @@ function extractDashboard(payload) {
     const seasonalNaive = modelData?.models?.seasonal_naive ?? {};
     const sarima = modelData?.models?.sarima ?? {};
 
-    const seasonalNaiveMae = numberOrZero(seasonalNaive?.mae);
-    const sarimaMae = numberOrZero(sarima?.mae);
+    const seasonalNaiveMae = metricOrNull(seasonalNaive?.mae);
+    const sarimaMae = metricOrNull(sarima?.mae);
 
     let bestModel = firstDefined(
       modelData?.best_model,
       modelData?.bestModel
     );
 
-    if (!bestModel && seasonalNaiveMae > 0 && sarimaMae > 0) {
+    if (!bestModel && seasonalNaiveMae !== null && sarimaMae !== null) {
       bestModel =
         seasonalNaiveMae <= sarimaMae
           ? "Seasonal-Naive"
@@ -312,16 +327,16 @@ function extractDashboard(payload) {
     }
 
     return {
-      bestModel: bestModel || "Not specified",
+      bestModel: bestModel || "Unavailable",
       seasonalNaive: {
         mae: seasonalNaiveMae,
-        rmse: numberOrZero(seasonalNaive?.rmse),
-        mape: numberOrZero(seasonalNaive?.mape),
+        rmse: metricOrNull(seasonalNaive?.rmse),
+        mape: metricOrNull(seasonalNaive?.mape),
       },
       sarima: {
         mae: sarimaMae,
-        rmse: numberOrZero(sarima?.rmse),
-        mape: numberOrZero(sarima?.mape),
+        rmse: metricOrNull(sarima?.rmse),
+        mape: metricOrNull(sarima?.mape),
       },
     };
   };
@@ -714,7 +729,7 @@ function ForecastEvaluationCard({
         </div>
 
         <span className="winner-badge">
-          Lower MAE: {bestModel}
+          MAE comparison: {bestModel}
         </span>
       </div>
 
@@ -724,17 +739,17 @@ function ForecastEvaluationCard({
         <div className="evaluation-grid">
           <div>
             <span>MAE</span>
-            <strong>{formatMoney(seasonalNaive.mae)}</strong>
+            <strong>{formatForecastMoney(seasonalNaive.mae)}</strong>
           </div>
 
           <div>
             <span>RMSE</span>
-            <strong>{formatMoney(seasonalNaive.rmse)}</strong>
+            <strong>{formatForecastMoney(seasonalNaive.rmse)}</strong>
           </div>
 
           <div>
             <span>MAPE</span>
-            <strong>{formatPercent(seasonalNaive.mape)}</strong>
+            <strong>{formatForecastPercent(seasonalNaive.mape)}</strong>
           </div>
         </div>
       </div>
@@ -745,17 +760,17 @@ function ForecastEvaluationCard({
         <div className="evaluation-grid">
           <div>
             <span>MAE</span>
-            <strong>{formatMoney(sarima.mae)}</strong>
+            <strong>{formatForecastMoney(sarima.mae)}</strong>
           </div>
 
           <div>
             <span>RMSE</span>
-            <strong>{formatMoney(sarima.rmse)}</strong>
+            <strong>{formatForecastMoney(sarima.rmse)}</strong>
           </div>
 
           <div>
             <span>MAPE</span>
-            <strong>{formatPercent(sarima.mape)}</strong>
+            <strong>{formatForecastPercent(sarima.mape)}</strong>
           </div>
         </div>
       </div>

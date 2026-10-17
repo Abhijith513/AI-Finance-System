@@ -132,7 +132,13 @@ def validate_narrative(text):
         raise ValueError("Gemini returned an empty narrative.")
     # Digit-bearing narratives are not accepted; all figures live in the
     # deterministic Python section. Models may discuss qualitative patterns.
-    if re.search(r"\d", text):
+    if re.search(r"\d", text) or re.search(
+        r"\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|"
+        r"eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|"
+        r"eighty|ninety|hundred|thousand|million|billion|percent|"
+        r"percentage|rupees|dollars)\b",
+        text, re.IGNORECASE,
+    ):
         raise ValueError("Gemini narrative contains unverified numeric claims.")
     forbidden = (
         "guaranteed", "risk-free", "proven real-world", "certified bank",

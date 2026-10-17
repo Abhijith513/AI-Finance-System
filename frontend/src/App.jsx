@@ -311,25 +311,27 @@ function extractDashboard(payload) {
     const seasonalNaive = modelData?.models?.seasonal_naive ?? {};
     const sarima = modelData?.models?.sarima ?? {};
 
-    const seasonalNaiveMae = metricOrNull(seasonalNaive?.mae);
-    const sarimaMae = metricOrNull(sarima?.mae);
+    const naiveMape = metricOrNull(seasonalNaive?.mape);
+    const sarimaMape = metricOrNull(sarima?.mape);
+    const baselineWindows = modelData?.validation?.observations;
+    const sarimaWindows = modelData?.validation?.sarima_observations;
+    const sarimaComplete =
+      baselineWindows === undefined ||
+      (baselineWindows > 0 && sarimaWindows === baselineWindows);
 
-    let bestModel = firstDefined(
-      modelData?.best_model,
-      modelData?.bestModel
-    );
-
-    if (!bestModel && seasonalNaiveMae !== null && sarimaMae !== null) {
-      bestModel =
-        seasonalNaiveMae <= sarimaMae
-          ? "Seasonal-Naive"
-          : "SARIMA";
+    let bestModel = "Unavailable";
+    if (naiveMape !== null) {
+      bestModel = "Seasonal-Naive";
+    }
+    if (sarimaMape !== null && sarimaComplete &&
+        (naiveMape === null || sarimaMape < naiveMape)) {
+      bestModel = "SARIMA";
     }
 
     return {
-      bestModel: bestModel || "Unavailable",
+      bestModel,
       seasonalNaive: {
-        mae: seasonalNaiveMae,
+        mae: metricOrNull(seasonalNaive?.mae),
         rmse: metricOrNull(seasonalNaive?.rmse),
         mape: metricOrNull(seasonalNaive?.mape),
       },
@@ -729,7 +731,7 @@ function ForecastEvaluationCard({
         </div>
 
         <span className="winner-badge">
-          MAE comparison: {bestModel}
+          Forecast model (validation MAPE): {bestModel}
         </span>
       </div>
 

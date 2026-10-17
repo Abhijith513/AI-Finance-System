@@ -31,7 +31,7 @@ FEATURE_NAMES = (
     "recent_1h_count", "recent_24h_count",
     "account_history_size", "log_gap", "short_transaction_gap",
 )
-ANOMALY_TYPES = ("new_merchant_and_location", "night_and_type_change", "transaction_burst")
+ANOMALY_TYPES = ("new_merchant_and_location", "night_and_type_change", "rapid_repeat")
 
 
 def generate_behavioural_study(seed=42, accounts=60, transactions=6000, anomalies=90):
@@ -87,9 +87,17 @@ def generate_behavioural_study(seed=42, accounts=60, transactions=6000, anomalie
                 transaction_type = "Withdrawal"
                 location = f"UnexpectedCity-{index}"
             else:
-                # Same amount, but 4 rapid nearby events. This event and
-                # nearby events can have heightened recent-frequency features.
-                transaction_time = normal_time + timedelta(seconds=5)
+                # Same monetary distribution; place a repeat just five
+                # seconds after the earlier regular activity of the account.
+                # This creates a short-gap/velocity anomaly, not four
+                # invented events. Its time is still strictly after a
+                # previously known record for the same account.
+                previous_visit = (
+                    normal_time - timedelta(hours=4)
+                    if visit == 1
+                    else normal_time - timedelta(days=1, hours=-4)
+                )
+                transaction_time = previous_visit + timedelta(seconds=5)
                 merchant = f"RapidMerchant-{a % 3}"
         rows.append(SimpleNamespace(
             transaction_id=index + 1, account_id=account_id,

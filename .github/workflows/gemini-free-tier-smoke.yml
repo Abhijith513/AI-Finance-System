@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      GEMINI_API_KEY: \${{ secrets.GEMINI_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_PROBE_OUTPUT: evidence/gemini_free_tier_check.json
     steps:
       - uses: actions/checkout@v4

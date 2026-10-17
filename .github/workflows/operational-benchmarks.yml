@@ -80,7 +80,7 @@ jobs:
           data = json.load(open(p))
           assert data["dataset_after_posts"] >= 50000
           assert data["cold_dashboard_ms"] > 0
-          for key in ("warm_dashboard","operations","report_fallback_or_gemini","new_synthetic_transaction"):
+          for key in ("warm_dashboard","operations","password_login","fraud_prediction_readback","report_fallback_or_gemini","new_synthetic_transaction"):
               record = data[key]
               assert record["requests"] == 8
               assert 0 < record["min_ms"] <= record["median_ms"] <= record["p95_ms"] <= record["max_ms"]

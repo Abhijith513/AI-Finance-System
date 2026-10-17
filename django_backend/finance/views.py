@@ -581,6 +581,22 @@ class GeminiReportView(APIView):
 # HEALTH CHECK
 # ============================================================
 
+class CurrentUserView(APIView):
+    """Authenticated identity for the demo UI; never expose token or password."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            "user_id": user.pk,
+            "username": user.username,
+            "role": user.role.role_name if user.role else None,
+            "branch": user.branch.branch_name if user.branch else None,
+            "can_run_demo": bool(user.role and user.role.role_name == "Admin"),
+        })
+
+
 class HealthCheckView(APIView):
     """
     Simple API health check.

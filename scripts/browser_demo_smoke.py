@@ -47,7 +47,10 @@ with sync_playwright() as playwright:
     screenshot(page, "04-report-evidence.png")
 
     page.get_by_role("button", name="Analytics dashboard").click()
-    page.get_by_role("heading", name="Banking analytics dashboard").wait_for(timeout=900_000)
+    page.locator(".dashboard .hero h1, .error-screen").first.wait_for(timeout=90_000)
+    if page.locator(".error-screen").count() > 0:
+        raise AssertionError("Analytics dashboard failed: " + page.locator(".error-screen").inner_text())
+    page.get_by_role("heading", name="Banking analytics dashboard").wait_for(timeout=10_000)
     screenshot(page, "05-real-dashboard.png")
     page.get_by_role("button", name="Sign out").click()
     page.get_by_role("heading", name="AI Finance System").wait_for(timeout=30_000)

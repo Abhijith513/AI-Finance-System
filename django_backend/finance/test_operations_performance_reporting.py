@@ -111,6 +111,26 @@ class OperationalWorkspaceTests(TestCase):
             400,
         )
 
+    def test_branch_manager_cannot_read_admin_actions_from_other_branches(self):
+        # Admin's home branch is A, but this action refers to account B.
+        # Legacy user-branch filtering alone would have leaked the audit text.
+        AuditLog.objects.create(
+            user=self.admin,
+            action=f"Sensitive cross-branch action on account {self.account_b.pk}",
+            ip_address="127.0.0.1",
+            log_time=timezone.now(),
+        )
+        self.as_user(self.manager_a)
+        ops = self.client.get("/api/operations/")
+        self.assertEqual(ops.status_code, 200)
+        self.assertNotIn(
+            "Sensitive cross-branch action",
+            str(ops.data.get("audit_logs")),
+        )
+        logs = self.client.get("/api/audit-logs/")
+        self.assertEqual(logs.status_code, 200)
+        self.assertNotIn("Sensitive cross-branch action", str(logs.data))
+
     def test_customer_cannot_open_operational_dashboard(self):
         self.as_user(self.customer_a)
         self.assertEqual(self.client.get("/api/operations/").status_code, 403)

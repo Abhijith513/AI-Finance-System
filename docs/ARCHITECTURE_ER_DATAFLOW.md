@@ -153,6 +153,77 @@ flowchart LR
     SEED --> LIVE["Live bounded account screening (separate heuristic)"]
 ```
 
+
+## Figure E — Isolated synthetic double-entry extension (Issue 16)
+
+```mermaid
+erDiagram
+    Account ||--o| SyntheticLedgerAccount : optional_demo_wallet
+    User ||--o{ SyntheticLedgerPosting : posts
+    SyntheticLedgerPosting ||--|{ SyntheticLedgerLine : has_two_balanced_lines
+    SyntheticLedgerAccount ||--o{ SyntheticLedgerLine : debited_or_credited
+    SyntheticLedgerPosting o|--o| SyntheticLedgerPosting : reversed_by_once
+    SyntheticLedgerAccount {
+        bigint id PK
+        string code UK
+        int account_id FK
+        decimal balance
+        bool is_system_clearing
+    }
+    SyntheticLedgerPosting {
+        bigint id PK
+        string idempotency_key UK
+        string request_fingerprint
+        string operation
+        decimal amount
+        int actor_id FK
+        int source_account_id FK
+        int destination_account_id FK
+        bigint reversal_of_id FK
+    }
+    SyntheticLedgerLine {
+        bigint id PK
+        bigint posting_id FK
+        bigint ledger_account_id FK
+        string side
+        decimal amount
+    }
+```
+
+```mermaid
+flowchart TD
+    A["Authenticated Admin or branch Manager"] --> B{"Authorized source and destination?"}
+    B -->|No| DENIED["HTTP 403; no entries"]
+    B -->|Yes| KEY{"Same idempotency key?"}
+    KEY -->|Existing same request| REPLAY["Return unchanged posting; no duplicate effect"]
+    KEY -->|Reused for different request| ERROR["HTTP 400; no changes"]
+    KEY -->|New| TX["Atomic PostgreSQL transaction and stable-order wallet locks"]
+    TX --> BAL{"Enough balance for debit-normal wallet being credited?"}
+    BAL -->|No| ROLLBACK["Rollback posting + lines + audit"]
+    BAL -->|Yes| LINES["One debit and one equal credit line"]
+    LINES --> APPLY["Update signed synthetic wallet balances"]
+    APPLY --> AUDIT["Append actor audit event atomically"]
+    AUDIT --> RECON["Admin reconciliation: every pair balanced and wallet sums match lines"]
+```
+
+**Isolation boundary:** `SyntheticLedgerPosting`, `SyntheticLedgerLine` and `SyntheticLedgerAccount` are newly introduced teaching tables. Deposits use debit customer demo wallet / credit system clearing; withdrawals reverse those; transfers debit recipient / credit sender; an authorized reversal inverts the original journal legs once. Signed system clearing may be negative, while customer demo wallets reject overdrafts. **No legacy `Account.balance`, `Transaction`, `JournalEntry`, risk benchmark or real money is adjusted by these simulator postings.**
+
+## Figure F — Horizon-specific exploratory forecast intervals (Issue 15)
+
+```mermaid
+flowchart LR
+  MONTHS["24 synthetic monthly observations"] --> ORIGINS["Rolling, strictly earlier training origins"]
+  ORIGINS --> ERROR["Forecast at selected horizon and record absolute errors"]
+  ERROR --> N{"At least eight calibration errors?"}
+  N -->|No| NA["Uncertainty interval unavailable"]
+  N -->|Yes| RANK["Finite-sample ordered error rank at nominal 80%"]
+  RANK --> BOUNDS["Seasonal-Naive point forecast ± empirical error radius"]
+  BOUNDS --> DISCLOSE["Disclose few validation checks and unverified exchangeability"]
+```
+
+Only available horizons are shown with bounds; horizons without sufficient calibration explicitly return `null`. This method is tied to **Seasonal-Naive predictions only**, never silently attached to SARIMA. A nominal interval is *not* evidence of externally validated financial coverage.
+
+
 ## Security and methodological limits
 
 - Passwords must be hashed; token logout revokes the token in Django. Permissions are verified on the server, not only by hiding React tabs.

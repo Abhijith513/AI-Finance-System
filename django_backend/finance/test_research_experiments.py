@@ -127,11 +127,12 @@ class PairedForecastTests(SimpleTestCase):
         self.assertEqual(result["paired"]["observations"], 10)
         self.assertEqual(len(result["sarima_failures"]), 1)
         self.assertEqual(result["sarima_failures"][0]["month"], "2025-02-01")
-        self.assertEqual(
-            [r["month"] for r in result["validation_windows"] if r["sarima"] is not None],
-            [r["month"] for r in result["paired"]["baseline_error_analysis"]["worst_windows"]] if False else
-            [r["month"] for r in result["validation_windows"] if r["sarima_status"] == "success"],
-        )
+        successful = [w for w in result["validation_windows"] if w["sarima_status"] == "success"]
+        failed = [w for w in result["validation_windows"] if w["sarima_status"] == "failed"]
+        self.assertEqual(len(successful), 10)
+        self.assertEqual(len(failed), 1)
+        self.assertTrue(all(w["seasonal_naive"] is not None and w["sarima"] is not None for w in successful))
+        self.assertIsNone(failed[0]["sarima"])
         paired_naive = result["paired"]["seasonal_naive"]
         self.assertIsNotNone(paired_naive["mae"])
         self.assertNotEqual(paired_naive["mae"], result["seasonal_naive"]["mae"])

@@ -2,8 +2,7 @@ from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 
 from finance.models import Transaction, FinancialForecast
-from finance.services.fraud_service import evaluate_fraud_models
-from finance.services.forecast_service import evaluate_forecast_models
+from finance.services.cached_research import get_cached_research_evaluations
 
 
 def get_dashboard_data():
@@ -164,13 +163,14 @@ def get_dashboard_data():
     # 5. VERIFIED FRAUD MODEL EVALUATION
     # ============================================================
 
-    fraud_evaluation = evaluate_fraud_models()
+    research = get_cached_research_evaluations()
+    fraud_evaluation = research["fraud_evaluation"]
 
     # ============================================================
     # 6. VERIFIED FORECAST MODEL EVALUATION
     # ============================================================
 
-    forecast_evaluation = evaluate_forecast_models()
+    forecast_evaluation = research["forecast_evaluation"]
 
     # ============================================================
     # 7. SAVED 2026 FORECASTS
@@ -256,6 +256,7 @@ def get_dashboard_data():
         "forecasts": forecast_data,
 
         "fraud_evaluation": fraud_evaluation,
+        "research_cache": research["cache"],
 
         "forecast_evaluation": forecast_evaluation,
 

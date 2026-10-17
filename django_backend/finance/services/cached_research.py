@@ -16,21 +16,23 @@ from django.db import connection
 from django.db.models import Count, Max, Min, Sum
 
 from finance.models import Transaction
+from .research_scope import RESEARCH_SCOPE_VERSION, research_transactions
 from finance.services.fraud_service import evaluate_fraud_models
 from finance.services.forecast_service import evaluate_forecast_models
 
 
-CACHE_SCHEMA = "research-v4"
+CACHE_SCHEMA = "research-v5-frozen-2024-2025"
 
 
 def research_dataset_fingerprint():
     """Cheap DB aggregate: no model fit or full Python row deserialization.
 
-    App-created transactions are append-only. For deliberate raw SQL or
-    bulk updates to existing values, TTL still bounds stale report risk.
+    Operations outside the frozen 2024–2025 study do NOT invalidate its
+    model metrics. For deliberate raw SQL or bulk in-place edits within
+    the study period, TTL still bounds stale report risk.
     Different databases and differing amount/label sums get different keys.
     """
-    aggregate = Transaction.objects.aggregate(
+    aggregate = research_transactions(Transaction.objects.all()).aggregate(
         total=Count("transaction_id"),
         first=Min("transaction_id"),
         latest=Max("transaction_id"),
@@ -50,6 +52,7 @@ def research_dataset_fingerprint():
         "earliest_time": str(aggregate["earliest_time"]),
         "latest_time": str(aggregate["latest_time"]),
         "schema": CACHE_SCHEMA,
+        "study_scope": RESEARCH_SCOPE_VERSION,
     }
     data = json.dumps(identity, sort_keys=True)
     digest = sha256(data.encode("utf-8")).hexdigest()

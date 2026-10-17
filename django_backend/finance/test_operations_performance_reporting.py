@@ -210,11 +210,13 @@ class CachedEvaluationsTests(TestCase):
     def setUp(self):
         cache.clear()
 
-    def add_transaction(self, amount):
+    def add_transaction(self, amount, when=None):
+        from datetime import datetime, timezone as dt_timezone
         return Transaction.objects.create(
             account=self.account, amount=Decimal(amount),
             transaction_type="Purchase", merchant="Market",
-            location="Kochi", transaction_time=timezone.now(),
+            location="Kochi",
+            transaction_time=when or datetime(2025, 6, 15, tzinfo=dt_timezone.utc),
             status="Completed", is_anomaly=0,
         )
 
@@ -239,6 +241,45 @@ class CachedEvaluationsTests(TestCase):
             self.assertFalse(third["cache"]["hit"])
             self.assertEqual(fraud.call_count, 2)
             self.assertEqual(forecast.call_count, 2)
+
+    def test_presenter_transaction_does_not_invalidate_frozen_research(self):
+        from datetime import datetime, timezone as dt_timezone
+        self.add_transaction("400.00")
+        original = research_dataset_fingerprint()
+        self.add_transaction(
+            "999999.00",
+            when=datetime(2026, 10, 17, tzinfo=dt_timezone.utc),
+        )
+        self.assertEqual(
+            research_dataset_fingerprint(), original,
+            "Live demo activity must not change the fixed research cohort.",
+        )
+
+    def test_forecasting_stays_at_twenty_four_months_after_demo_post(self):
+        from datetime import datetime, timezone as dt_timezone
+        from finance.services.forecast_service import get_monthly_transaction_data
+        Transaction.objects.all().delete()
+        for year, month in [(2024, 1), (2025, 12)]:
+            Transaction.objects.create(
+                account=self.account, amount=Decimal("300.00"),
+                transaction_type="Deposit", merchant="Source", location="Kochi",
+                transaction_time=datetime(year, month, 15, tzinfo=dt_timezone.utc),
+                status="Completed", is_anomaly=0,
+            )
+            Transaction.objects.create(
+                account=self.account, amount=Decimal("100.00"),
+                transaction_type="Purchase", merchant="Vendor", location="Kochi",
+                transaction_time=datetime(year, month, 15, tzinfo=dt_timezone.utc),
+                status="Completed", is_anomaly=0,
+            )
+        self.add_transaction(
+            "999999.00",
+            when=datetime(2026, 10, 17, tzinfo=dt_timezone.utc),
+        )
+        data = get_monthly_transaction_data()
+        self.assertEqual(len(data["income"]), 24)
+        self.assertEqual(len(data["expense"]), 24)
+        self.assertEqual(data["income"].index.max().strftime("%Y-%m"), "2025-12")
 
     def test_stale_cache_is_not_used_after_amount_sum_changes(self):
         self.add_transaction("400.00")

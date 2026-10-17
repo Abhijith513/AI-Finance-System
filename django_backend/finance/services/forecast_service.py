@@ -8,6 +8,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.stattools import adfuller
 
 from finance.models import Transaction
+from .research_scope import research_transactions
 
 
 # ============================================================
@@ -26,10 +27,14 @@ def get_monthly_transaction_data():
 
     Transfer transactions are excluded because the dataset
     does not contain enough information to determine direction.
+
+    This is the *frozen Jan 2024–Dec 2025 research sample*, not an ongoing
+    live banking forecast. Later presentation events cannot lengthen the
+    historical period or alter reported model comparisons.
     """
 
     transactions = (
-        Transaction.objects
+        research_transactions(Transaction.objects.all())
         .values("transaction_time", "transaction_type")
         .annotate(total_amount=Sum("amount"))
         .order_by("transaction_time")

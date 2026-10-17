@@ -2,6 +2,7 @@ from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 
 from finance.models import Transaction, FinancialForecast
+from finance.services.research_scope import research_transactions
 from finance.services.cached_research import get_cached_research_evaluations
 
 
@@ -78,7 +79,7 @@ def get_dashboard_data():
     # ============================================================
 
     monthly_rows = (
-        Transaction.objects
+        research_transactions(Transaction.objects.all())
         .annotate(
             month=TruncMonth("transaction_time")
         )

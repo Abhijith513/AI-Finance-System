@@ -1253,9 +1253,10 @@ def evaluate_fraud_models(transactions=None):
 
     if transactions is None:
         from finance.models import Transaction
+        from .research_scope import research_transactions
 
         transactions = list(
-            Transaction.objects.all().order_by(
+            research_transactions(Transaction.objects.all()).order_by(
                 "transaction_time",
                 "transaction_id",
             )

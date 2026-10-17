@@ -336,7 +336,7 @@ function extractDashboard(payload) {
         mape: metricOrNull(seasonalNaive?.mape),
       },
       sarima: {
-        mae: sarimaMae,
+        mae: metricOrNull(sarima?.mae),
         rmse: metricOrNull(sarima?.rmse),
         mape: metricOrNull(sarima?.mape),
       },

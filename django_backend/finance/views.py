@@ -368,9 +368,10 @@ class FinancialForecastViewSet(viewsets.ReadOnlyModelViewSet):
                     saved_forecasts,
                     many=True,
                 )
+                response_data = serializer.data
 
             return Response(
-                serializer.data,
+                response_data,
                 status=status.HTTP_201_CREATED,
             )
 

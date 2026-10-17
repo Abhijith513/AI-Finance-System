@@ -11,7 +11,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction as db_transaction
 from django.db.models import Sum
-from django.core.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 
 from finance.models import (
     Account, SyntheticLedgerAccount, SyntheticLedgerPosting, SyntheticLedgerLine,
@@ -103,11 +103,12 @@ def post_ledger_operation(*, user, operation, amount=None, account_id=None,
     if operation == "reversal":
         if not reversal_posting_id:
             raise ValidationError("Reversal requires an original posting ID.")
-        original = SyntheticLedgerPosting.objects.select_for_update().get(pk=reversal_posting_id)
+        try:
+            original = SyntheticLedgerPosting.objects.select_for_update().get(pk=reversal_posting_id)
+        except SyntheticLedgerPosting.DoesNotExist as exc:
+            raise NotFound("Original posting does not exist.") from exc
         if original.operation == "reversal":
             raise ValidationError("Cannot reverse a reversal.")
-        if SyntheticLedgerPosting.objects.filter(reversal_of=original).exists():
-            raise ValidationError("The posting has already been reversed.")
         source = original.source_account
         target = original.destination_account
         if source:
@@ -117,8 +118,11 @@ def post_ledger_operation(*, user, operation, amount=None, account_id=None,
         value = original.amount
     else:
         value = _money(amount)
-        source = Account.objects.select_related("user", "user__role").get(pk=account_id) if account_id else None
-        target = Account.objects.select_related("user", "user__role").get(pk=destination_account_id) if destination_account_id else None
+        try:
+            source = Account.objects.select_related("user", "user__role").get(pk=account_id) if account_id else None
+            target = Account.objects.select_related("user", "user__role").get(pk=destination_account_id) if destination_account_id else None
+        except (Account.DoesNotExist, ValueError, TypeError) as exc:
+            raise NotFound("Synthetic ledger account not found.") from exc
         if operation in ("withdrawal", "deposit") and (source is None or target is not None):
             raise ValidationError("Deposit/withdrawal requires one account and no destination.")
         if operation == "transfer" and (source is None or target is None or source.pk == target.pk):
@@ -136,6 +140,9 @@ def post_ledger_operation(*, user, operation, amount=None, account_id=None,
         if prior.request_fingerprint != request_hash:
             raise ValidationError("Idempotency key was previously used for a different request.")
         return prior, False
+    if original and SyntheticLedgerPosting.objects.filter(reversal_of=original).exists():
+        raise ValidationError("This posting has already been reversed.")
+
     posting, created = SyntheticLedgerPosting.objects.get_or_create(
         idempotency_key=idempotency_key,
         defaults={

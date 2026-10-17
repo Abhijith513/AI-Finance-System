@@ -261,74 +261,131 @@ def calculate_metrics(actual, predicted):
 # 6. EXPANDING-WINDOW VALIDATION
 # ============================================================
 
-def expanding_window_validation(
-    series,
-    initial_train_size=12,
-    horizon=1,
-):
-    """
-    Expanding-window one-step-ahead validation.
-
-    Example:
-
-    Train: Jan-Dec
-    Predict: Jan
-
-    Train: Jan-Jan
-    Predict: Feb
-
-    Train: Jan-Feb
-    Predict: Mar
-
-    ...
-    """
-
-    baseline_actual = []
-    baseline_predictions = []
-    sarima_actual = []
-    sarima_predictions = []
-    total_points = len(series)
-
-    if total_points <= initial_train_size:
+def _forecast_error_analysis(rows):
+    """Explain the size, direction and timing of measured one-step errors."""
+    if not rows:
         return {
-            "seasonal_naive": calculate_metrics([], []),
-            "sarima": calculate_metrics([], []),
-            "observations": 0,
-            "sarima_observations": 0,
+            "observations": 0, "mean_signed_error": None,
+            "median_absolute_error": None, "max_absolute_error": None,
+            "worst_windows": [],
+        }
+    errors = np.asarray([row["predicted"] - row["actual"] for row in rows], dtype=float)
+    absolute = np.abs(errors)
+    worst = sorted(
+        rows, key=lambda row: abs(row["predicted"] - row["actual"]), reverse=True
+    )[:3]
+    return {
+        "observations": len(rows),
+        "mean_signed_error": round(float(np.mean(errors)), 2),
+        "median_absolute_error": round(float(np.median(absolute)), 2),
+        "max_absolute_error": round(float(np.max(absolute)), 2),
+        "worst_windows": worst,
+    }
+
+
+def expanding_window_validation(series, initial_train_size=12, horizon=1):
+    """Expanding-window evaluation with legacy and STRICTLY PAIRED metrics.
+
+    'seasonal_naive' retains all available baseline windows even when SARIMA
+    diverges, preserving the original academic experiment and transparency.
+    'paired' evaluates BOTH models only on the identical timestamps where
+    SARIMA completed successfully; SARIMA failures are kept in the timeline.
+    Every row is traceable to a validation month, with signed residuals
+    calculated as predicted minus observed.
+    """
+    baseline_rows = []
+    paired_baseline_rows = []
+    sarima_rows = []
+    failures = []
+    all_windows = []
+    if len(series) <= initial_train_size:
+        empty = calculate_metrics([], [])
+        return {
+            "seasonal_naive": empty, "sarima": empty,
+            "observations": 0, "sarima_observations": 0,
+            "paired": {
+                "seasonal_naive": empty, "sarima": empty,
+                "observations": 0, "baseline_error_analysis": _forecast_error_analysis([]),
+                "sarima_error_analysis": _forecast_error_analysis([]),
+            },
+            "validation_windows": [],
+            "sarima_failures": [],
         }
 
-    for end_index in range(initial_train_size, total_points, horizon):
+    for end_index in range(initial_train_size, len(series), horizon):
         train = series.iloc[:end_index]
         test = series.iloc[end_index:end_index + horizon]
         if test.empty:
             break
 
-        # Never drop a baseline validation window when SARIMA fails.
-        baseline = np.asarray(
+        naive = np.asarray(
             seasonal_naive_forecast(train, len(test), season_length=12),
             dtype=float,
         )
-        baseline_actual.extend(test.values)
-        baseline_predictions.extend(baseline)
+        if len(naive) != len(test) or not np.all(np.isfinite(naive)):
+            raise ValueError("Seasonal-Naive generated invalid validation values.")
+        actual = np.asarray(test.values, dtype=float)
+        dates = [
+            value.date().isoformat() if hasattr(value, "date") else str(value)
+            for value in test.index
+        ]
+        for date, observed, predicted in zip(dates, actual, naive):
+            baseline_rows.append({
+                "month": date, "actual": float(observed),
+                "predicted": float(predicted),
+            })
 
+        sarima = None
+        reason = None
         try:
-            predicted = np.asarray(sarima_forecast(train, len(test)), dtype=float)
-            if len(predicted) != len(test) or not np.all(np.isfinite(predicted)):
-                continue
-        except (ValueError, FloatingPointError, OverflowError, ArithmeticError):
-            continue
-        except Exception:
-            # Some statsmodels backends raise other fitting errors.
+            sarima = np.asarray(sarima_forecast(train, len(test)), dtype=float)
+            if len(sarima) != len(test) or not np.all(np.isfinite(sarima)):
+                reason = "non_finite_or_wrong_horizon"
+        except Exception as exc:
+            reason = type(exc).__name__
+
+        if reason is not None:
+            for date, observed, predicted in zip(dates, actual, naive):
+                failures.append({"month": date, "reason": reason})
+                all_windows.append({
+                    "month": date, "observed": float(observed),
+                    "seasonal_naive": float(predicted),
+                    "sarima": None, "sarima_status": "failed",
+                })
             continue
 
-        sarima_actual.extend(test.values)
-        sarima_predictions.extend(predicted)
+        for date, observed, nv, sv in zip(dates, actual, naive, sarima):
+            paired_baseline_rows.append({
+                "month": date, "actual": float(observed), "predicted": float(nv),
+            })
+            sarima_rows.append({
+                "month": date, "actual": float(observed), "predicted": float(sv),
+            })
+            all_windows.append({
+                "month": date, "observed": float(observed),
+                "seasonal_naive": float(nv), "sarima": float(sv),
+                "sarima_status": "success",
+            })
+
+    def metrics(rows):
+        return calculate_metrics(
+            [x["actual"] for x in rows], [x["predicted"] for x in rows]
+        )
 
     return {
-        "seasonal_naive": calculate_metrics(baseline_actual, baseline_predictions),
-        "sarima": calculate_metrics(sarima_actual, sarima_predictions),
-        "observations": len(baseline_actual),
-        "sarima_observations": len(sarima_actual),
+        "seasonal_naive": metrics(baseline_rows),
+        "sarima": metrics(sarima_rows),
+        "observations": len(baseline_rows),
+        "sarima_observations": len(sarima_rows),
+        "paired": {
+            "seasonal_naive": metrics(paired_baseline_rows),
+            "sarima": metrics(sarima_rows),
+            "observations": len(sarima_rows),
+            "baseline_error_analysis": _forecast_error_analysis(paired_baseline_rows),
+            "sarima_error_analysis": _forecast_error_analysis(sarima_rows),
+        },
+        "validation_windows": all_windows,
+        "sarima_failures": failures,
     }
 
 
@@ -393,6 +450,9 @@ def evaluate_forecast_models():
                 "method": "Expanding-window one-step-ahead validation",
                 "observations": income_validation["observations"],
                 "sarima_observations": income_validation["sarima_observations"],
+                "sarima_failures": income_validation["sarima_failures"],
+                "windows": income_validation["validation_windows"],
+                "paired_comparison": income_validation["paired"],
             },
             "models": {
                 "seasonal_naive": income_validation["seasonal_naive"],
@@ -406,6 +466,9 @@ def evaluate_forecast_models():
                 "method": "Expanding-window one-step-ahead validation",
                 "observations": expense_validation["observations"],
                 "sarima_observations": expense_validation["sarima_observations"],
+                "sarima_failures": expense_validation["sarima_failures"],
+                "windows": expense_validation["validation_windows"],
+                "paired_comparison": expense_validation["paired"],
             },
             "models": {
                 "seasonal_naive": expense_validation["seasonal_naive"],

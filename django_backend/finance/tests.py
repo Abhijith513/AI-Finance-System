@@ -1182,13 +1182,13 @@ class CoreAPITests(TestCase):
 # ============================================================
 
 class ForecastGenerationTests(TestCase):
-    """Verify that forecast generation creates 12 rows."""
+    """Verify institution-wide admin forecast generation creates 12 rows."""
 
     @classmethod
     def setUpTestData(cls):
 
         role, _ = Role.objects.get_or_create(
-            role_name="Manager"
+            role_name="Admin"
         )
 
         branch = Branch.objects.create(

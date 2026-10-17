@@ -1060,6 +1060,13 @@ class DemoDataTests(TestCase):
             50000
         )
 
+    def test_initial_bootstrap_persists_twelve_months_of_forecasts(self):
+        """A fresh clone must not need a second bootstrap to obtain forecasts."""
+        self.assertEqual(FinancialForecast.objects.count(), 12)
+        self.assertEqual(
+            FinancialForecast.objects.values("forecast_month").distinct().count(), 12
+        )
+
     def test_users_cover_multiple_branches(self):
         """Users must belong to multiple branches."""
 

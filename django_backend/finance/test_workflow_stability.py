@@ -94,6 +94,32 @@ class LiveTransactionScreenTests(TestCase):
         self.assertEqual(Alert.objects.filter(transaction=prediction.transaction).count(), 1)
         self.assertGreaterEqual(float(prediction.fraud_probability), 0.60)
 
+    def test_live_screen_has_a_bounded_account_only_history(self):
+        base = datetime(2025, 1, 1, 10, 0, tzinfo=dt_timezone.utc)
+        for index in range(300):
+            Transaction.objects.create(
+                account=self.account, amount=Decimal("100.00"),
+                transaction_type="Deposit", merchant="Known",
+                location="Kochi",
+                transaction_time=base + timedelta(hours=index),
+                status="Completed", is_anomaly=0,
+            )
+
+        def check_history(items):
+            self.assertLessEqual(len(items), 251)
+            self.assertTrue(all(tx.account_id == self.account.pk for tx in items))
+            return [0.0] * len(items)
+
+        with patch(
+            "finance.services.live_fraud_service._calculate_behavioural_risk_scores",
+            side_effect=check_history,
+        ) as scorer:
+            response = self.client_for_admin().post(
+                "/api/transactions/", self.transaction_payload(), format="json"
+            )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(scorer.call_count, 1)
+
     def test_failure_rolls_back_transaction_prediction_and_alert(self):
         with patch("finance.views.create_audit_log", side_effect=RuntimeError("audit unavailable")):
             with self.assertRaises(RuntimeError):

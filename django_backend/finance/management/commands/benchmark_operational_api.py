@@ -71,6 +71,19 @@ class Command(BaseCommand):
                 "max_ms": round(max(values), 2),
             }
 
+        # Password authentication is independently timed from a fresh client.
+        # Do not record, log or serialize the username/password or token.
+        def fresh_login():
+            visitor = APIClient()
+            return visitor.post(
+                "/api/token/",
+                {"username": "demo_presenter", "password": password},
+                format="json",
+            )
+        authentication = [
+            one("fresh token login", fresh_login) for _ in range(samples)
+        ]
+
         cache.clear()
         cold_dashboard_ms = one("cold dashboard", lambda: client.get("/api/dashboard/"))
         operations = [
@@ -103,6 +116,11 @@ class Command(BaseCommand):
                     format="json",
                 ),
             ))
+        prediction_readback = [
+            one("stored fraud prediction read-back",
+                lambda: client.get("/api/fraud-predictions/"))
+            for _ in range(samples)
+        ]
         # The repeated POSTs intentionally append synthetic transactions;
         # after this group, a dashboard request MUST reflect invalidation.
         post_write_dashboard = one(
@@ -125,6 +143,8 @@ class Command(BaseCommand):
             "cold_dashboard_ms": round(cold_dashboard_ms, 2),
             "warm_dashboard": summary(warm_dash),
             "operations": summary(operations),
+            "password_login": summary(authentication),
+            "fraud_prediction_readback": summary(prediction_readback),
             "report_fallback_or_gemini": summary(fallback_reports),
             "new_synthetic_transaction": summary(transaction_post),
             "post_write_cache_recalculation_ms": round(post_write_dashboard, 2),

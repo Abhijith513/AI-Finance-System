@@ -69,6 +69,25 @@ try {
   log.operational_review_verified = true;
   await page.screenshot({ path: path.join(evidenceDir, "06-operations-reviewed.png"), fullPage: true });
 
+  // The separately posted synthetic ledger must reconcile without changing
+  // existing ML benchmark transaction rows or legacy account balances.
+  await page.getByRole("button", { name: "Synthetic ledger", exact: true }).click();
+  await page.getByRole("heading", { name: "Double-entry ledger and reconciliation" }).waitFor({ timeout: 20000 });
+  await page.getByLabel("Source account ID").fill(accountValue);
+  await page.getByRole("button", { name: "Post and verify balanced entry" }).click();
+  await page.getByRole("status").filter({ hasText: "two balanced lines" }).waitFor({ timeout: 20000 });
+  await page.getByRole("status").filter({ hasText: "All postings and wallet balances reconcile." }).waitFor({ timeout: 20000 });
+  log.synthetic_ledger_balanced = true;
+  await page.screenshot({ path: path.join(evidenceDir, "07-balanced-synthetic-ledger.png"), fullPage: true });
+
+  await page.getByRole("button", { name: "Analytics dashboard" }).click();
+  await page.getByRole("heading", { name: "Exploratory Seasonal-Naive uncertainty" }).waitFor({ timeout: 90000 });
+  if ((await page.getByText("Insufficient data").count()) === 0) {
+    throw new Error("Uncertainty display did not disclose unavailable longer horizons.");
+  }
+  log.uncertainty_limitations_visible = true;
+  await page.screenshot({ path: path.join(evidenceDir, "08-forecast-uncertainty.png"), fullPage: true });
+
   const presenterToken = await page.evaluate(() => sessionStorage.getItem("finance_api_token"));
   if (!presenterToken) throw new Error("Presenter token missing before logout");
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -80,7 +99,7 @@ try {
     throw new Error("SECURITY REGRESSION: signed-out server token still authorizes /api/me/ (HTTP " + denied.status() + ")");
   }
   log.server_token_revoked = true;
-  await page.screenshot({ path: path.join(evidenceDir, "07-signed-out.png"), fullPage: true });
+  await page.screenshot({ path: path.join(evidenceDir, "09-signed-out.png"), fullPage: true });
   log.pass = true;
   console.log("BROWSER DEMO PASS: 8/8 steps; " + runtime);
 } catch (error) {

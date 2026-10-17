@@ -7,12 +7,18 @@ on:
       - .github/workflows/operational-benchmarks.yml
       - django_backend/finance/services/cached_research.py
       - django_backend/finance/management/commands/benchmark_operational_api.py
+      - django_backend/finance/test_operations_performance_reporting.py
+      - django_backend/finance/views.py
+      - django_backend/finance/services/gemini_service.py
   pull_request:
     branches: [main]
     paths:
       - .github/workflows/operational-benchmarks.yml
       - django_backend/finance/services/cached_research.py
       - django_backend/finance/management/commands/benchmark_operational_api.py
+      - django_backend/finance/test_operations_performance_reporting.py
+      - django_backend/finance/views.py
+      - django_backend/finance/services/gemini_service.py
   workflow_dispatch:
 
 jobs:

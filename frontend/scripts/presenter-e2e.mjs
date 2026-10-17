@@ -27,7 +27,7 @@ try {
     const title = await row.locator("h2").innerText();
     const detail = await row.locator("p").innerText();
     const status = await row.locator("strong").innerText();
-    if (!status.startsWith("pass")) throw new Error("Failed step " + title + ": " + status);
+    if (!status.toLowerCase().startsWith("pass")) throw new Error("Failed step " + title + ": " + status);
     log.steps.push({ title, detail, status });
   }
   if (stepRows.length !== 8) throw new Error("Expected exactly eight verified steps");

@@ -1,0 +1,45 @@
+# Remediation Master Plan — AI Finance System
+
+**Project objective (17 October 2026):** Finish every previously identified weakness to a defensible, demonstrable academic-prototype standard; only then consider optional additions. Compare the original student repository and this fork **after remediation is complete**, provide an explicit change-by-change handover, then write the final university report from the frozen tested revision, and teach the student to explain it.
+
+**Branches and custody:** Work exclusively on `Abhijith513/AI-Finance-System` branch `rescue/submission-critical-fixes`. Do not mutate `Layana7592/AI-Finance-System` or merge the fork's `main` before final review. Preserve the original dataset, results and academic limitations, documenting any revised experiment separately.
+
+## Evidence-based gates
+
+Statuses must be updated only from **actual tests, screenshots, benchmark artifacts, or source inspection**. A commit is implementation evidence, not completion evidence. A synthetic result is not a real-world fraud claim. An external Gemini call requires a real configured API key (never published). Report preparation is **after** the final technical freeze.
+
+| ID | Problem to resolve | Concrete acceptance criteria | Current state |
+|---|---|---|---|
+| C1 | No normal login/logout | Presenter signs in with a password, backend verifies identity; sign-out prevents reuse of the active browser session; unauthorized accounts denied; integration tests and browser screenshot | Implemented; server-side token invalidation still to assess |
+| C2 | No end-to-end browser evidence | Clean DB + real Django + React + Chromium; 8/8 transaction/dashboard/report checks; screenshots and timing; separate analytics screen verified; no browser exceptions | Partial; timed 8/8 obtained, full acceptance pending |
+| C3 | Stale README results | Main README contains current **verified seed-42** numbers and provenance, with original experiment preserved unchanged and old counts clearly archived | Documentation updated; verify on CI |
+| C4 | No genuine figures in academic report | Screenshots and reproducible architecture/ER diagrams match *frozen* source; no fabricated views | Open — final report stage |
+| H5 | No held-out Isolation Forest evaluation | Time-separated training/test; no leakage; freeze threshold from training; complete precision/recall/F1/CM and class prevalence | Open |
+| H6 | Unrealistic anomaly generator | Separate explicitly labelled behavioural-only anomaly cases (without gross-amount shortcuts); deterministic seed and label rationale; retain original 50k experiment unchanged | Open |
+| H7 | Non-paired SARIMA validation | Same timestamps for both model metrics, including explicit SARIMA failures; error metrics only on matched successful windows plus failure coverage | Open |
+| H8 | No model-error analysis | Case studies of FP/FN and missed anomalies, feature-level explanation, and residual/forecast-failure analysis; tables reproducible from code | Open |
+| H9 | Limited operational UI | Authenticated read/write/read-back for synthetic transactions, fraud alerts, audit entries and investigation/resolution as authorized; branch boundaries; e2e evidence | Partial — guided presenter read-back exists |
+| H10 | Expensive dashboard computation | Benchmark request latency; cache/version expensive model evaluations; invalidate on changing research data; live dashboard never retrains all 50k per navigation | Open |
+| H11 | Unverified Gemini | Valid API/model with real key tested, numerical claims compared to Python truth, disclosure and deterministic fallback test; never claim live external AI when fallback is used | Open — fallback only |
+| M12 | No explicit research hypotheses | Written hypothesis table about statistical baseline vs IF, synthetic-design sensitivity, and seasonal naive vs SARIMA with clearly defined validity and decision criteria | Open |
+| M13 | Missing diagrams | Reproducible logical architecture, ER relations/cardinalities, dataflow and role/workflow security diagram; agree with actual code | Open |
+| M14 | No timed performance benchmarking | Record median/p95 from repeated actual requests (login, new transaction, fraud read-back, dashboards, report/fallback); controlled data size and machine recorded | Partial — one timed walkthrough |
+| M15 | No forecast uncertainty | Explain and evaluate calibrated interval method on held-out monthly data or explicitly document inadequacy with available 24 months; do not present arbitrary intervals as scientifically validated | Open |
+| M16 | Incomplete ledger/reconciliation | Limit scope to a **synthetic accounting simulator**: explicit balanced journal entries, atomic posting, reconciliation tests, correction/reversal semantics, consistency under retries; do not claim core-banking certification | Open |
+
+## Execution order — no new features until remediation gates are closed
+
+1. **Baseline and live proof:** stabilize latest browser builds and 8/8 evidence, fix dashboard errors, provenance/README, add current CI test gates. Archive the original experiment.
+2. **Research integrity:** H5–H8 then M12 and M15. Preserve original experiment unchanged; new datasets and matched-window evaluation are separate artifacts, not substitutions. Record model failures honestly.
+3. **Operational reliability:** H9–H11 and M16. Server-side auth lifecycle, branch-scope tests, transaction/alert resolution and synthetic double-entry reconciliation; safe cached analytic API and measured latency M14.
+4. **Documentation/visual evidence:** code-derived diagrams M13, genuine screenshots C4, reproducibility instructions, measured system specs. No invented model accuracy or clinical/financial impact claims.
+5. **Freeze and external review:** exact commit, full suite, real browser acceptance, synthetic benchmark artifact, no secrets, threat/permission review. Then inspect **both** Layana's original and the fork; compare every material change.
+6. **Handover to Layana:** share working fork and reviewed revision, commit/PR, exact setup, tests, screenshots, reasoning for every change, original experiment limitations, independent work she must understand; never silently overwrite her repository.
+7. **Final university report and teaching:** build only from the frozen version and measured figures; apply exact Kannur University PGDDSA format, insert verified visuals/certifications, teach complete functionality and prepare a viva with practical exercises.
+
+## Scope constraints and risk
+
+- The October 21 report deadline is real. Implementing **all 16** issues (particularly a ledger engine, new research experiments, uncertainty calibration and a live third-party Gemini check) may exceed that date. Do not fabricate completed milestones to claim a deadline has been met. Escalate actual schedule risks openly.
+- Banking transactions stay synthetic. H11 needs an external API key and may entail costs; no credentials or personal bank/customer data belong in this repository.
+- Deliver functionality with tests, not speculative features; user decides any additional scope after remediation.
+- No final report content or university submission claim is to be authored as complete until a frozen revision and evidence exist.

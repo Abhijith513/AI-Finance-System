@@ -36,23 +36,23 @@ class OperationalWorkspaceTests(TestCase):
             ifsc_code="OPS00000002", phone="9000000002",
         )
         cls.admin = User.objects.create_user(
-            username="ops-admin", password="test-only", role=cls.admin_role,
+            username="ops-admin", email="ops-admin@example.invalid", password="test-only", role=cls.admin_role,
             branch=cls.branch_a,
         )
         cls.manager_a = User.objects.create_user(
-            username="ops-manager-a", password="test-only",
+            username="ops-manager-a", email="ops-manager-a@example.invalid", password="test-only",
             role=cls.manager_role, branch=cls.branch_a,
         )
         cls.manager_b = User.objects.create_user(
-            username="ops-manager-b", password="test-only",
+            username="ops-manager-b", email="ops-manager-b@example.invalid", password="test-only",
             role=cls.manager_role, branch=cls.branch_b,
         )
         cls.customer_a = User.objects.create_user(
-            username="ops-customer-a", password="test-only",
+            username="ops-customer-a", email="ops-customer-a@example.invalid", password="test-only",
             role=cls.customer_role, branch=cls.branch_a,
         )
         cls.customer_b = User.objects.create_user(
-            username="ops-customer-b", password="test-only",
+            username="ops-customer-b", email="ops-customer-b@example.invalid", password="test-only",
             role=cls.customer_role, branch=cls.branch_b,
         )
         cls.account_a = Account.objects.create(
@@ -180,7 +180,7 @@ class CachedEvaluationsTests(TestCase):
             ifsc_code="CACHE000001", phone="9000000003",
         )
         user = User.objects.create_user(
-            username="cache-user", password="test-only", role=role, branch=branch,
+            username="cache-user", email="cache-user@example.invalid", password="test-only", role=role, branch=branch,
         )
         cls.account = Account.objects.create(
             user=user, account_number="CACHE001", account_type="Savings",

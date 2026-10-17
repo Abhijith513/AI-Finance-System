@@ -45,8 +45,17 @@ try {
   await page.getByText("Verified transaction evidence").waitFor({ timeout: 30000 });
   await page.getByText("Show management report").click();
   await page.screenshot({ path: path.join(evidenceDir, "05-management-report.png"), fullPage: true });
+  const presenterToken = await page.evaluate(() => sessionStorage.getItem("finance_api_token"));
+  if (!presenterToken) throw new Error("Presenter token missing before logout");
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.getByRole("button", { name: "Sign in", exact: true }).waitFor({ timeout: 30000 });
+  const denied = await page.request.get(root + "/api/me/", {
+    headers: { Authorization: "Token " + presenterToken },
+  });
+  if (denied.status() !== 401) {
+    throw new Error("SECURITY REGRESSION: signed-out server token still authorizes /api/me/ (HTTP " + denied.status() + ")");
+  }
+  log.server_token_revoked = true;
   await page.screenshot({ path: path.join(evidenceDir, "06-signed-out.png"), fullPage: true });
   log.pass = true;
   console.log("BROWSER DEMO PASS: 8/8 steps; " + runtime);

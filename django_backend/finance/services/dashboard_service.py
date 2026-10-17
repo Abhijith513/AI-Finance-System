@@ -213,35 +213,17 @@ def get_dashboard_data():
     # 8. FORECAST SYSTEM INFORMATION
     # ============================================================
 
-    forecast_dataset = (
-        forecast_evaluation.get(
-            "dataset",
-            {}
-        )
-    )
-
-    historical_months = int(
-        forecast_dataset.get(
-            "months",
-            24
-        )
-    )
-
-    training_months = int(
-        forecast_dataset.get(
-            "training_months",
-            12
-        )
-    )
-
+    # Derive dates and sample counts from the actual evaluation, not defaults.
+    historical_months = int(forecast_evaluation.get("number_of_months") or 0)
     validation_months = int(
-        forecast_dataset.get(
-            "validation_months",
-            12
-        )
+        forecast_evaluation.get("income", {})
+        .get("validation", {})
+        .get("observations") or 0
     )
-
-    forecast_horizon = 12
+    training_months = (
+        historical_months - validation_months if validation_months else 0
+    )
+    forecast_horizon = len(forecast_data)
 
     # ============================================================
     # 9. FINAL RESPONSE
